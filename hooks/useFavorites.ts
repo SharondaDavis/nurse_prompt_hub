@@ -1,3 +1,4 @@
+// hooks/useFavorites.ts
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
@@ -6,7 +7,7 @@ export function useFavorites() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Helper to fetch current user's favorites
+    // Fetch current user's favorites
     async function fetchFavorites() {
       setLoading(true);
       const user = supabase.auth.user();
@@ -22,12 +23,11 @@ export function useFavorites() {
         .eq('user_id', user.id);
 
       if (!error && data) {
-        setFavorites(data.map((row) => row.prompt_id));
+        setFavorites(data.map((row: { prompt_id: string }) => row.prompt_id));
       }
       setLoading(false);
     }
 
-    // Listen for real-time changes
     const user = supabase.auth.user();
     let subscription: any;
     if (user) {
@@ -44,7 +44,7 @@ export function useFavorites() {
     };
   }, []);
 
-  // Add & remove functions
+  // Add a favorite
   const addFavorite = async (promptId: string) => {
     const user = supabase.auth.user();
     if (!user) return;
@@ -53,6 +53,7 @@ export function useFavorites() {
     ]);
   };
 
+  // Remove a favorite
   const removeFavorite = async (promptId: string) => {
     const user = supabase.auth.user();
     if (!user) return;
