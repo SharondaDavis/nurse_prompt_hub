@@ -14,13 +14,23 @@ export default function TabLayout() {
           borderTopColor: '#E5E7EB',
           paddingTop: 8,
           paddingBottom: 8,
-          height: 80,
+          height: 70,
         },
         tabBarLabelStyle: {
           fontSize: 12,
           fontWeight: '600',
           marginTop: 4,
         },
+        tabBarIconStyle: {
+          marginBottom: 0,
+        },
+        tabBarItemStyle: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingHorizontal: 8,
+        },
+        tabBarLabelPosition: 'beside-icon',
       }}
     >
       <Tabs.Screen
