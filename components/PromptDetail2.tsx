@@ -11,18 +11,7 @@ import {
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as Notifications from 'expo-notifications';
-import { 
-  X, 
-  Copy, 
-  Heart, 
-  Bell, 
-  Share2,
-  Clock,
-  User,
-  Tag,
-  TrendingUp,
-  CheckCircle
-} from 'lucide-react-native';
+import { X, Copy, Heart, Bell, Share2, Clock, User, Tag, TrendingUp, CircleCheck as CheckCircle } from 'lucide-react-native';
 import { useFavorites } from '../hooks/useFavorites';
 
 interface PromptDetail2Props {
