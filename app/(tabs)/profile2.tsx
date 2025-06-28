@@ -24,7 +24,7 @@ import {
   ChevronRight,
   Award
 } from 'lucide-react-native';
-import { useFavorites } from '../../hooks/useFavorites';
+import { useFavorites } from '@/hooks/useFavorites';
 
 // Mock data for demonstration
 const MOCK_USER = {
