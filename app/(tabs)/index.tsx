@@ -21,6 +21,7 @@ import {
   BookOpen,
   Stethoscope
 } from 'lucide-react-native';
+import { supabase } from '@/lib/supabaseClient';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -64,9 +65,69 @@ const FEATURED_PROMPTS = [
   },
 ];
 
+interface Metrics {
+  promptCount: number;
+  nurseCount: number;
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [metrics, setMetrics] = useState<Metrics>({ promptCount: 0, nurseCount: 0 });
+  const [isLoadingMetrics, setIsLoadingMetrics] = useState(true);
+
+  useEffect(() => {
+    fetchMetrics();
+  }, []);
+
+  const fetchMetrics = async () => {
+    try {
+      setIsLoadingMetrics(true);
+
+      // Check if Supabase is properly configured
+      const isSupabaseConfigured = 
+        process.env.EXPO_PUBLIC_SUPABASE_URL && 
+        process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY &&
+        process.env.EXPO_PUBLIC_SUPABASE_URL !== 'https://your-project-id.supabase.co' &&
+        process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY !== 'your-anon-key-here';
+
+      if (!isSupabaseConfigured) {
+        // Use mock data when Supabase is not configured
+        setMetrics({ promptCount: 500, nurseCount: 10000 });
+        setIsLoadingMetrics(false);
+        return;
+      }
+
+      // Fetch prompt count
+      const { count: promptCount, error: promptError } = await supabase
+        .from('prompts')
+        .select('id', { count: 'exact', head: true });
+
+      if (promptError) {
+        console.error('Error fetching prompt count:', promptError);
+      }
+
+      // Fetch nurse count from user_profiles table
+      const { count: nurseCount, error: nurseError } = await supabase
+        .from('user_profiles')
+        .select('username', { count: 'exact', head: true });
+
+      if (nurseError) {
+        console.error('Error fetching nurse count:', nurseError);
+      }
+
+      setMetrics({
+        promptCount: promptCount || 0,
+        nurseCount: nurseCount || 0,
+      });
+    } catch (error) {
+      console.error('Error fetching metrics:', error);
+      // Fallback to default values on error
+      setMetrics({ promptCount: 500, nurseCount: 10000 });
+    } finally {
+      setIsLoadingMetrics(false);
+    }
+  };
 
   const handleCategoryPress = (categoryId: string) => {
     setSelectedCategory(categoryId);
@@ -87,6 +148,13 @@ export default function HomeScreen() {
     router.push('/(tabs)/search');
   };
 
+  const formatCount = (count: number): string => {
+    if (count >= 1000) {
+      return `${Math.floor(count / 1000)}K+`;
+    }
+    return `${count}+`;
+  };
+
   const renderHeroSection = () => (
     <View style={styles.heroSection}>
       <Image
@@ -105,11 +173,15 @@ export default function HomeScreen() {
           <View style={styles.heroStats}>
             <View style={styles.statItem}>
               <BookOpen size={20} color="#FFFFFF" />
-              <Text style={styles.statText}>500+ Prompts</Text>
+              <Text style={styles.statText}>
+                {isLoadingMetrics ? '...' : `${formatCount(metrics.promptCount)} Prompts`}
+              </Text>
             </View>
             <View style={styles.statItem}>
               <Users size={20} color="#FFFFFF" />
-              <Text style={styles.statText}>10K+ Nurses</Text>
+              <Text style={styles.statText}>
+                {isLoadingMetrics ? '...' : `${formatCount(metrics.nurseCount)} Nurses`}
+              </Text>
             </View>
             <View style={styles.statItem}>
               <TrendingUp size={20} color="#FFFFFF" />
