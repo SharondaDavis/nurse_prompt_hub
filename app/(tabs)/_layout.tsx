@@ -59,6 +59,13 @@ export default function TabLayout() {
           ),
         }}
       />
+      {/* Hide the duplicate home.tsx file from tabs */}
+      <Tabs.Screen
+        name="home"
+        options={{
+          href: null, // This hides the tab from the tab bar
+        }}
+      />
     </Tabs>
   );
 }
