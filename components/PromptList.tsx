@@ -10,7 +10,8 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { Heart, Calendar, Tag, TrendingUp, Clock, User, Plus, Building2, ThumbsUp } from 'lucide-react-native';
+import { Heart, Calendar, Tag, TrendingUp, Clock, User, Plus, Building2, ThumbsUp, Copy } from 'lucide-react-native';
+import * as Clipboard from 'expo-clipboard';
 import { PromptWithUser } from '@/lib/fetchPrompts';
 import { UserAvatar } from './UserAvatar';
 import { useVoting } from '@/hooks/useVoting';
@@ -49,6 +50,7 @@ export function PromptList({
   const { user } = useUser();
   const { hasVoted, toggleVote, getVoteCount, getVoteCountSync } = useVoting();
   const [localVoteCounts, setLocalVoteCounts] = useState<Record<string, number>>({});
+  const [copiedPromptId, setCopiedPromptId] = useState<string | null>(null);
 
   // Load vote counts for visible prompts
   useEffect(() => {
@@ -100,6 +102,25 @@ export function PromptList({
         'Error',
         error instanceof Error ? error.message : 'Failed to update vote. Please try again.'
       );
+    }
+  };
+
+  const handleCopyToClipboard = async (prompt: PromptWithUser, event: any) => {
+    // Prevent the prompt card from being pressed when copying
+    event.stopPropagation();
+
+    try {
+      await Clipboard.setStringAsync(prompt.content);
+      setCopiedPromptId(prompt.id);
+      
+      // Reset the copied state after 2 seconds
+      setTimeout(() => {
+        setCopiedPromptId(null);
+      }, 2000);
+      
+      Alert.alert('Copied!', 'Prompt content has been copied to your clipboard.');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to copy content to clipboard.');
     }
   };
 
@@ -168,85 +189,103 @@ export function PromptList({
   const renderPrompt = ({ item }: { item: PromptWithUser }) => {
     const voteCount = getDisplayVoteCount(item.id);
     const userHasVoted = hasVoted(item.id);
+    const isCopied = copiedPromptId === item.id;
 
     return (
-      <TouchableOpacity
-        style={[styles.promptCard, { width: cardWidth }]}
-        onPress={() => onPromptPress(item)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.promptHeader}>
-          <View style={styles.promptTitleContainer}>
-            <Text style={styles.promptTitle} numberOfLines={2}>
-              {item.title}
-            </Text>
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryText}>{item.category.replace('-', ' ')}</Text>
-            </View>
-          </View>
-        </View>
-
-        <Text style={styles.promptContent} numberOfLines={3}>
-          {item.content}
-        </Text>
-
-        {/* Attribution Section */}
-        {renderAttribution(item)}
-
-        <View style={styles.promptMeta}>
-          <View style={styles.metaRow}>
-            <View style={styles.metaItem}>
-              <Calendar size={14} color="#666666" />
-              <Text style={styles.metaText}>
-                {new Date(item.created_at).toLocaleDateString()}
+      <View style={[styles.promptCardContainer, { width: cardWidth }]}>
+        <TouchableOpacity
+          style={styles.promptCard}
+          onPress={() => onPromptPress(item)}
+          activeOpacity={0.7}
+        >
+          <View style={styles.promptHeader}>
+            <View style={styles.promptTitleContainer}>
+              <Text style={styles.promptTitle} numberOfLines={2}>
+                {item.title}
               </Text>
-            </View>
-            
-            <View style={styles.metaItem}>
-              <User size={14} color="#666666" />
-              <Text style={styles.metaText}>{item.specialty?.toUpperCase() || 'GENERAL'}</Text>
+              <View style={styles.categoryBadge}>
+                <Text style={styles.categoryText}>{item.category.replace('-', ' ')}</Text>
+              </View>
             </View>
           </View>
-        </View>
 
-        {item.tags && item.tags.length > 0 && (
-          <View style={styles.tagsContainer}>
-            <Tag size={12} color="#666666" />
-            {item.tags.slice(0, 3).map((tag, index) => (
-              <Text key={index} style={styles.tag}>
-                {tag}
+          <Text style={styles.promptContent} numberOfLines={3}>
+            {item.content}
+          </Text>
+
+          {/* Attribution Section */}
+          {renderAttribution(item)}
+
+          <View style={styles.promptMeta}>
+            <View style={styles.metaRow}>
+              <View style={styles.metaItem}>
+                <Calendar size={14} color="#666666" />
+                <Text style={styles.metaText}>
+                  {new Date(item.created_at).toLocaleDateString()}
+                </Text>
+              </View>
+              
+              <View style={styles.metaItem}>
+                <User size={14} color="#666666" />
+                <Text style={styles.metaText}>{item.specialty?.toUpperCase() || 'GENERAL'}</Text>
+              </View>
+            </View>
+          </View>
+
+          {item.tags && item.tags.length > 0 && (
+            <View style={styles.tagsContainer}>
+              <Tag size={12} color="#666666" />
+              {item.tags.slice(0, 3).map((tag, index) => (
+                <Text key={index} style={styles.tag}>
+                  {tag}
+                </Text>
+              ))}
+              {item.tags.length > 3 && (
+                <Text style={styles.moreTagsText}>+{item.tags.length - 3}</Text>
+              )}
+            </View>
+          )}
+
+          {/* Vote Section */}
+          <View style={styles.voteSection}>
+            <TouchableOpacity
+              style={[
+                styles.voteButton,
+                userHasVoted && styles.voteButtonActive
+              ]}
+              onPress={(event) => handleVoteToggle(item.id, event)}
+              activeOpacity={0.7}
+            >
+              <ThumbsUp 
+                size={16} 
+                color={userHasVoted ? "#FFFFFF" : "#7D3C98"}
+                fill={userHasVoted ? "#FFFFFF" : "none"}
+              />
+              <Text style={[
+                styles.voteText,
+                userHasVoted && styles.voteTextActive
+              ]}>
+                {voteCount}
               </Text>
-            ))}
-            {item.tags.length > 3 && (
-              <Text style={styles.moreTagsText}>+{item.tags.length - 3}</Text>
-            )}
+            </TouchableOpacity>
           </View>
-        )}
+        </TouchableOpacity>
 
-        {/* Vote Section */}
-        <View style={styles.voteSection}>
-          <TouchableOpacity
-            style={[
-              styles.voteButton,
-              userHasVoted && styles.voteButtonActive
-            ]}
-            onPress={(event) => handleVoteToggle(item.id, event)}
-            activeOpacity={0.7}
-          >
-            <ThumbsUp 
-              size={16} 
-              color={userHasVoted ? "#FFFFFF" : "#7D3C98"}
-              fill={userHasVoted ? "#FFFFFF" : "none"}
-            />
-            <Text style={[
-              styles.voteText,
-              userHasVoted && styles.voteTextActive
-            ]}>
-              {voteCount}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </TouchableOpacity>
+        {/* Copy to Clipboard Icon - Positioned absolutely in top-right */}
+        <TouchableOpacity
+          style={[
+            styles.copyButton,
+            isCopied && styles.copyButtonActive
+          ]}
+          onPress={(event) => handleCopyToClipboard(item, event)}
+          activeOpacity={0.7}
+        >
+          <Copy 
+            size={16} 
+            color={isCopied ? "#10B981" : "#666666"}
+          />
+        </TouchableOpacity>
+      </View>
     );
   };
 
@@ -355,11 +394,14 @@ const styles = StyleSheet.create({
   row: {
     justifyContent: 'space-between',
   },
+  promptCardContainer: {
+    position: 'relative',
+    marginBottom: 16,
+  },
   promptCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 20,
-    marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -371,6 +413,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E5E5',
   },
+  copyButton: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F9F9F9',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+  },
+  copyButtonActive: {
+    backgroundColor: '#F0FDF4',
+    borderColor: '#10B981',
+  },
   promptHeader: {
     marginBottom: 16,
   },
@@ -378,6 +445,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+    paddingRight: 40, // Add padding to avoid overlap with copy button
   },
   promptTitle: {
     flex: 1,
