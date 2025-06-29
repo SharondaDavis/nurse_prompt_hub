@@ -9,6 +9,8 @@ import {
   Alert,
   Share,
   Modal,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { 
@@ -21,15 +23,18 @@ import {
   User,
   Building2,
   Bell,
-  ArrowLeft
+  ArrowLeft,
+  MessageSquare
 } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import { fetchPromptById, PromptWithUser } from '@/lib/fetchPrompts';
 import { useVoting } from '@/hooks/useVoting';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useUser } from '@/hooks/useUser';
+import { useComments } from '@/hooks/useComments';
 import { UserAvatar } from '@/components/UserAvatar';
 import { Auth } from '@/components/Auth';
+import { CommentSection } from '@/components/CommentSection';
 
 export default function PromptDetailScreen() {
   const router = useRouter();
@@ -37,6 +42,7 @@ export default function PromptDetailScreen() {
   const { user } = useUser();
   const { hasVoted, toggleVote, getVoteCount } = useVoting();
   const { isFavorited, addFavorite, removeFavorite } = useFavorites();
+  const { commentCount } = useComments(id as string);
   
   const [prompt, setPrompt] = useState<PromptWithUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -44,6 +50,7 @@ export default function PromptDetailScreen() {
   const [isVoting, setIsVoting] = useState(false);
   const [isFavoriting, setIsFavoriting] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
+  const [showComments, setShowComments] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -176,6 +183,10 @@ export default function PromptDetailScreen() {
     setShowAuth(false);
   };
 
+  const handleToggleComments = () => {
+    setShowComments(!showComments);
+  };
+
   const renderAttribution = () => {
     if (!prompt) return null;
 
@@ -274,133 +285,171 @@ export default function PromptDetailScreen() {
   const userHasFavorited = isFavorited(prompt.id);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft size={24} color="#666666" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Prompt Details</Text>
-      </View>
-      
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>{prompt.title}</Text>
-        
-        {/* Author Section */}
-        {renderAttribution()}
-        
-        <View style={styles.metaSection}>
-          <View style={styles.metaBadge}>
-            <Text style={styles.metaBadgeText}>{prompt.category}</Text>
-          </View>
-          <View style={styles.metaBadge}>
-            <Text style={styles.metaBadgeText}>{prompt.specialty}</Text>
-          </View>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 64 : 0}
+    >
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <ArrowLeft size={24} color="#666666" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Prompt Details</Text>
         </View>
-
-        <Text style={styles.promptContent}>{prompt.content}</Text>
-
-        {prompt.tags && prompt.tags.length > 0 && (
-          <View style={styles.tagsSection}>
-            <Text style={styles.tagsTitle}>Tags:</Text>
-            <View style={styles.tagsContainer}>
-              {prompt.tags.map((tag, index) => (
-                <Text key={index} style={styles.tag}>
-                  #{tag}
-                </Text>
-              ))}
+        
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+          <Text style={styles.title}>{prompt.title}</Text>
+          
+          {/* Author Section */}
+          {renderAttribution()}
+          
+          <View style={styles.metaSection}>
+            <View style={styles.metaBadge}>
+              <Text style={styles.metaBadgeText}>{prompt.category}</Text>
+            </View>
+            <View style={styles.metaBadge}>
+              <Text style={styles.metaBadgeText}>{prompt.specialty}</Text>
             </View>
           </View>
-        )}
 
-        {/* Vote Section */}
-        <View style={styles.voteSection}>
-          <TouchableOpacity
+          <Text style={styles.promptContent}>{prompt.content}</Text>
+
+          {prompt.tags && prompt.tags.length > 0 && (
+            <View style={styles.tagsSection}>
+              <Text style={styles.tagsTitle}>Tags:</Text>
+              <View style={styles.tagsContainer}>
+                {prompt.tags.map((tag, index) => (
+                  <Text key={index} style={styles.tag}>
+                    #{tag}
+                  </Text>
+                ))}
+              </View>
+            </View>
+          )}
+
+          {/* Vote Section */}
+          <View style={styles.voteSection}>
+            <TouchableOpacity
+              style={[
+                styles.voteButton,
+                userHasVoted && styles.voteButtonActive,
+                isVoting && styles.voteButtonDisabled
+              ]}
+              onPress={handleVoteToggle}
+              disabled={isVoting}
+              activeOpacity={0.7}
+            >
+              <ThumbsUp 
+                size={20} 
+                color={userHasVoted ? "#FFFFFF" : "#7D3C98"}
+                fill={userHasVoted ? "#FFFFFF" : "none"}
+              />
+              <Text style={[
+                styles.voteButtonText,
+                userHasVoted && styles.voteButtonTextActive
+              ]}>
+                {isVoting ? 'Updating...' : `${voteCount} ${voteCount === 1 ? 'vote' : 'votes'}`}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Action Buttons */}
+          <View style={styles.actionSection}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={handleCopyToClipboard}
+              activeOpacity={0.7}
+            >
+              <Copy size={18} color="#666666" />
+              <Text style={styles.actionButtonText}>Copy</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={handleShare}
+              activeOpacity={0.7}
+            >
+              <Share2 size={18} color="#666666" />
+              <Text style={styles.actionButtonText}>Share</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={handleToggleComments}
+              activeOpacity={0.7}
+            >
+              <MessageSquare size={18} color="#666666" />
+              <Text style={styles.actionButtonText}>
+                Comments ({commentCount})
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          {showComments && (
+            <CommentSection 
+              promptId={prompt.id} 
+              onSignInRequired={() => setShowAuth(true)}
+            />
+          )}
+
+          <View style={styles.footerSection}>
+            <Text style={styles.footerText}>
+              Created {new Date(prompt.created_at).toLocaleDateString()}
+            </Text>
+          </View>
+        </ScrollView>
+
+        {/* Action Bar */}
+        <View style={styles.actionBar}>
+          <TouchableOpacity 
             style={[
-              styles.voteButton,
-              userHasVoted && styles.voteButtonActive,
-              isVoting && styles.voteButtonDisabled
+              styles.favoriteButton,
+              userHasFavorited && styles.favoriteButtonActive,
+              isFavoriting && styles.favoriteButtonDisabled
             ]}
-            onPress={handleVoteToggle}
-            disabled={isVoting}
-            activeOpacity={0.7}
+            onPress={handleFavoriteToggle}
+            disabled={isFavoriting}
+            activeOpacity={0.8}
           >
-            <ThumbsUp 
+            <Heart 
               size={20} 
-              color={userHasVoted ? "#FFFFFF" : "#7D3C98"}
-              fill={userHasVoted ? "#FFFFFF" : "none"}
+              color={userHasFavorited ? "#FFFFFF" : "#EF4444"}
+              fill={userHasFavorited ? "#FFFFFF" : "none"}
             />
             <Text style={[
-              styles.voteButtonText,
-              userHasVoted && styles.voteButtonTextActive
+              styles.favoriteButtonText,
+              userHasFavorited && styles.favoriteButtonTextActive
             ]}>
-              {isVoting ? 'Updating...' : `${voteCount} ${voteCount === 1 ? 'vote' : 'votes'}`}
+              {isFavoriting ? 'Updating...' : (userHasFavorited ? 'Saved' : 'Save')}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.commentButton}
+            onPress={handleToggleComments}
+            activeOpacity={0.8}
+          >
+            <MessageSquare size={20} color="#6366F1" />
+            <Text style={styles.commentButtonText}>
+              {showComments ? 'Hide Comments' : 'View Comments'}
             </Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.footerSection}>
-          <Text style={styles.footerText}>
-            Created {new Date(prompt.created_at).toLocaleDateString()}
-          </Text>
-        </View>
-      </ScrollView>
-
-      {/* Action Bar */}
-      <View style={styles.actionBar}>
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={handleCopyToClipboard}
-          activeOpacity={0.8}
+        {/* Auth Modal */}
+        <Modal
+          visible={showAuth}
+          animationType="slide"
+          presentationStyle="fullScreen"
         >
-          <Copy size={20} color="#6B7280" />
-          <Text style={styles.actionButtonText}>Copy</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.actionButton}
-          onPress={handleShare}
-          activeOpacity={0.8}
-        >
-          <Share2 size={20} color="#6B7280" />
-          <Text style={styles.actionButtonText}>Share</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={[
-            styles.favoriteButton,
-            userHasFavorited && styles.favoriteButtonActive,
-            isFavoriting && styles.favoriteButtonDisabled
-          ]}
-          onPress={handleFavoriteToggle}
-          disabled={isFavoriting}
-          activeOpacity={0.8}
-        >
-          <Heart 
-            size={20} 
-            color={userHasFavorited ? "#FFFFFF" : "#EF4444"}
-            fill={userHasFavorited ? "#FFFFFF" : "none"}
+          <Auth
+            onAuthSuccess={handleAuthSuccess}
+            onCancel={() => setShowAuth(false)}
           />
-          <Text style={[
-            styles.favoriteButtonText,
-            userHasFavorited && styles.favoriteButtonTextActive
-          ]}>
-            {isFavoriting ? 'Updating...' : (userHasFavorited ? 'Saved' : 'Save')}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Auth Modal */}
-      <Modal
-        visible={showAuth}
-        animationType="slide"
-        presentationStyle="fullScreen"
-      >
-        <Auth
-          onAuthSuccess={handleAuthSuccess}
-          onCancel={() => setShowAuth(false)}
-        />
-      </Modal>
-    </SafeAreaView>
+        </Modal>
+      </SafeAreaView>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -586,6 +635,30 @@ const styles = StyleSheet.create({
   voteButtonTextActive: {
     color: '#FFFFFF',
   },
+  actionSection: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  actionButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    gap: 6,
+    marginHorizontal: 4,
+  },
+  actionButtonText: {
+    fontSize: 12,
+    color: '#666666',
+    fontWeight: '500',
+  },
   footerSection: {
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
@@ -604,21 +677,6 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
     gap: 12,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#F9FAFB',
-    paddingVertical: 12,
-    borderRadius: 12,
-    gap: 6,
-  },
-  actionButtonText: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '600',
   },
   favoriteButton: {
     flex: 1,
@@ -646,5 +704,22 @@ const styles = StyleSheet.create({
   },
   favoriteButtonTextActive: {
     color: '#FFFFFF',
+  },
+  commentButton: {
+    flex: 2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F0F4FF',
+    paddingVertical: 12,
+    borderRadius: 12,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: '#E0E7FF',
+  },
+  commentButtonText: {
+    fontSize: 14,
+    color: '#6366F1',
+    fontWeight: '600',
   },
 });
