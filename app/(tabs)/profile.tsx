@@ -12,23 +12,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { 
-  User, 
-  Heart, 
-  FileText, 
-  Settings, 
-  Moon, 
-  Sun,
-  LogIn,
-  Bookmark,
-  TrendingUp,
-  Clock,
-  ChevronRight,
-  Award,
-  ThumbsUp,
-  Edit3,
-  Plus
-} from 'lucide-react-native';
+import { User, Heart, FileText, Settings, Moon, Sun, LogIn, Bookmark, TrendingUp, Clock, ChevronRight, Award, ThumbsUp, CreditCard as Edit3, Plus } from 'lucide-react-native';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useUser } from '@/hooks/useUser';
 import { useVoting } from '@/hooks/useVoting';
