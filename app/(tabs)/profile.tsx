@@ -13,11 +13,10 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { User, Heart, FileText, Settings, Moon, Sun, LogOut, Bookmark, TrendingUp, Clock, ChevronRight, Award, ThumbsUp, CreditCard as Edit3, Plus } from 'lucide-react-native';
+import { User, Heart, FileText, Settings, LogOut, Bookmark, TrendingUp, Clock, ChevronRight, Award, ThumbsUp, CreditCard as Edit3, Plus } from 'lucide-react-native';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useUser } from '@/hooks/useUser';
 import { useVoting } from '@/hooks/useVoting';
-import { useTheme } from '@/hooks/useTheme';
 import { fetchPromptsByUser, PromptWithUser } from '@/lib/fetchPrompts';
 import { Auth } from '@/components/Auth';
 import { supabase } from '@/lib/supabaseClient';
@@ -27,7 +26,6 @@ export default function ProfileScreen() {
   const { user, profile, isLoading: userLoading } = useUser();
   const { favorites, loading: favoritesLoading } = useFavorites();
   const { votes } = useVoting();
-  const { theme, toggleTheme, isDark } = useTheme();
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'favorites', 'contributions', 'settings'
   const [showAuth, setShowAuth] = useState(false);
   const [userPrompts, setUserPrompts] = useState<PromptWithUser[]>([]);
@@ -191,7 +189,6 @@ export default function ProfileScreen() {
       </View>
       
       <View style={styles.profileInfo}>
-        <Text style={styles.profileName}>{profile?.full_name || 'Nurse'}</Text>
         <Text style={styles.profileUsername}>@{profile?.username || 'username'}</Text>
         <Text style={styles.profileSpecialty}>{profile?.specialty || 'General Practice'}</Text>
         <Text style={styles.profileExperience}>{profile?.years_experience || 0} years experience</Text>
@@ -479,34 +476,6 @@ export default function ProfileScreen() {
   const renderSettings = () => (
     <View style={styles.tabContent}>
       <View style={styles.settingsSection}>
-        <Text style={styles.settingsSectionTitle}>Appearance</Text>
-        
-        <View style={styles.settingItem}>
-          <View style={styles.settingInfo}>
-            <View style={styles.settingIcon}>
-              {isDark ? (
-                <Moon size={20} color="#6366F1" />
-              ) : (
-                <Sun size={20} color="#F59E0B" />
-              )}
-            </View>
-            <View style={styles.settingText}>
-              <Text style={styles.settingTitle}>Dark Mode</Text>
-              <Text style={styles.settingDescription}>
-                Switch between light and dark themes
-              </Text>
-            </View>
-          </View>
-          <Switch
-            value={isDark}
-            onValueChange={toggleTheme}
-            trackColor={{ false: '#E5E7EB', true: '#6366F1' }}
-            thumbColor={isDark ? '#FFFFFF' : '#FFFFFF'}
-          />
-        </View>
-      </View>
-      
-      <View style={styles.settingsSection}>
         <Text style={styles.settingsSectionTitle}>Account</Text>
         
         <TouchableOpacity style={styles.settingItem} onPress={handleEditProfile}>
@@ -675,17 +644,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
-  profileName: {
+  profileUsername: {
     fontSize: 24,
     fontWeight: '700',
     color: '#1F2937',
-    marginBottom: 4,
-  },
-  profileUsername: {
-    fontSize: 16,
-    color: '#6366F1',
-    fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 8,
   },
   profileSpecialty: {
     fontSize: 16,
