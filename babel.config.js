@@ -5,5 +5,6 @@ module.exports = function(api) {
     plugins: 
        'expo-router/babel',       // ← keep this in!
       'react-native-reanimated/plugin' // if you’re using Reanimated
+    
   };
 };
