@@ -230,9 +230,6 @@ export default function PromptDetailScreen() {
             <Text style={styles.userAttributionSpecialty}>
               {prompt.user_profiles.specialty || 'General Practice'}
             </Text>
-            <Text style={styles.userAttributionFullName}>
-              {prompt.user_profiles.full_name || 'Anonymous Nurse'}
-            </Text>
           </View>
         </View>
       );
@@ -314,19 +311,6 @@ export default function PromptDetailScreen() {
           </View>
 
           <Text style={styles.promptContent}>{prompt.content}</Text>
-
-          {prompt.tags && prompt.tags.length > 0 && (
-            <View style={styles.tagsSection}>
-              <Text style={styles.tagsTitle}>Tags:</Text>
-              <View style={styles.tagsContainer}>
-                {prompt.tags.map((tag, index) => (
-                  <Text key={index} style={styles.tag}>
-                    #{tag}
-                  </Text>
-                ))}
-              </View>
-            </View>
-          )}
 
           {/* Vote Section */}
           <View style={styles.voteSection}>
@@ -551,12 +535,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666666',
     fontWeight: '500',
-    marginBottom: 2,
-  },
-  userAttributionFullName: {
-    fontSize: 14,
-    color: '#999999',
-    fontStyle: 'italic',
   },
   metaSection: {
     flexDirection: 'row',
@@ -581,28 +559,6 @@ const styles = StyleSheet.create({
     color: '#374151',
     lineHeight: 24,
     marginBottom: 24,
-  },
-  tagsSection: {
-    marginBottom: 24,
-  },
-  tagsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  tagsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  tag: {
-    fontSize: 14,
-    color: '#7D3C98',
-    backgroundColor: '#F3E8FF',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
   },
   voteSection: {
     alignItems: 'center',
