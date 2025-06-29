@@ -105,62 +105,13 @@ export default function ProfileScreen() {
     );
   }
 
+  // Show authentication screen if user is not logged in
   if (!user) {
     return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.unauthContainer}>
-          <View style={styles.unauthContent}>
-            <View style={styles.unauthIcon}>
-              <User size={48} color="#6366F1" />
-            </View>
-            
-            <Text style={styles.unauthTitle}>Join the Community</Text>
-            <Text style={styles.unauthSubtitle}>
-              Sign in to save your favorite prompts, track your contributions, and connect with fellow nurses.
-            </Text>
-            
-            <View style={styles.benefitsList}>
-              <View style={styles.benefitItem}>
-                <Heart size={20} color="#EF4444" />
-                <Text style={styles.benefitText}>Save favorite prompts</Text>
-              </View>
-              <View style={styles.benefitItem}>
-                <FileText size={20} color="#10B981" />
-                <Text style={styles.benefitText}>Track your contributions</Text>
-              </View>
-              <View style={styles.benefitItem}>
-                <Award size={20} color="#F59E0B" />
-                <Text style={styles.benefitText}>Build your reputation</Text>
-              </View>
-              <View style={styles.benefitItem}>
-                <ThumbsUp size={20} color="#8B5CF6" />
-                <Text style={styles.benefitText}>Vote on prompts</Text>
-              </View>
-            </View>
-            
-            <TouchableOpacity 
-              style={styles.signInButton}
-              onPress={handleSignIn}
-              activeOpacity={0.9}
-            >
-              <LogIn size={20} color="#FFFFFF" />
-              <Text style={styles.signInButtonText}>Sign In / Sign Up</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Auth Modal */}
-        <Modal
-          visible={showAuth}
-          animationType="slide"
-          presentationStyle="fullScreen"
-        >
-          <Auth
-            onAuthSuccess={handleAuthSuccess}
-            onCancel={() => setShowAuth(false)}
-          />
-        </Modal>
-      </SafeAreaView>
+      <Auth 
+        onAuthSuccess={handleAuthSuccess}
+        onCancel={() => {}}
+      />
     );
   }
 
@@ -207,7 +158,7 @@ export default function ProfileScreen() {
         style={[styles.tab, activeTab === 'overview' && styles.activeTab]}
         onPress={() => setActiveTab('overview')}
       >
-        <User size={18} color={activeTab === 'overview' ? '#6366F1' : '#6B7280'} />
+        <User size={18} color={activeTab === 'overview' ? "#6366F1" : "#6B7280"} />
         <Text style={[
           styles.tabText,
           activeTab === 'overview' && styles.activeTabText
@@ -220,7 +171,7 @@ export default function ProfileScreen() {
         style={[styles.tab, activeTab === 'favorites' && styles.activeTab]}
         onPress={() => setActiveTab('favorites')}
       >
-        <Heart size={18} color={activeTab === 'favorites' ? '#6366F1' : '#6B7280'} />
+        <Heart size={18} color={activeTab === 'favorites' ? "#6366F1" : "#6B7280"} />
         <Text style={[
           styles.tabText,
           activeTab === 'favorites' && styles.activeTabText
@@ -233,7 +184,7 @@ export default function ProfileScreen() {
         style={[styles.tab, activeTab === 'contributions' && styles.activeTab]}
         onPress={() => setActiveTab('contributions')}
       >
-        <FileText size={18} color={activeTab === 'contributions' ? '#6366F1' : '#6B7280'} />
+        <FileText size={18} color={activeTab === 'contributions' ? "#6366F1" : "#6B7280"} />
         <Text style={[
           styles.tabText,
           activeTab === 'contributions' && styles.activeTabText
@@ -246,7 +197,7 @@ export default function ProfileScreen() {
         style={[styles.tab, activeTab === 'settings' && styles.activeTab]}
         onPress={() => setActiveTab('settings')}
       >
-        <Settings size={18} color={activeTab === 'settings' ? '#6366F1' : '#6B7280'} />
+        <Settings size={18} color={activeTab === 'settings' ? "#6366F1" : "#6B7280"} />
         <Text style={[
           styles.tabText,
           activeTab === 'settings' && styles.activeTabText
@@ -352,36 +303,36 @@ export default function ProfileScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
           }
         >
-          {favorites.map((prompt) => (
+          {favorites.map((favorite) => (
             <TouchableOpacity
-              key={prompt.id}
+              key={favorite.id}
               style={styles.promptCard}
-              onPress={() => handlePromptPress(prompt.id)}
+              onPress={() => handlePromptPress(favorite.prompt_id)}
               activeOpacity={0.9}
             >
               <View style={styles.promptCardHeader}>
                 <View style={styles.promptCategory}>
-                  <Text style={styles.promptCategoryText}>{prompt.category}</Text>
+                  <Text style={styles.promptCategoryText}>{favorite.prompts.category}</Text>
                 </View>
                 <View style={styles.promptVotes}>
                   <TrendingUp size={14} color="#EF4444" />
-                  <Text style={styles.votesText}>{prompt.votes}</Text>
+                  <Text style={styles.votesText}>{favorite.prompts.votes}</Text>
                 </View>
               </View>
               
               <Text style={styles.promptTitle} numberOfLines={2}>
-                {prompt.title}
+                {favorite.prompts.title}
               </Text>
               
               <Text style={styles.promptExcerpt} numberOfLines={2}>
-                {prompt.excerpt}
+                {favorite.prompts.content.substring(0, 120)}...
               </Text>
               
               <View style={styles.promptFooter}>
                 <View style={styles.promptMeta}>
                   <Clock size={12} color="#6B7280" />
                   <Text style={styles.promptDate}>
-                    Saved {new Date(prompt.savedAt).toLocaleDateString()}
+                    Saved {new Date(favorite.created_at).toLocaleDateString()}
                   </Text>
                 </View>
                 <ChevronRight size={16} color="#6B7280" />
@@ -574,71 +525,6 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     color: '#6B7280',
-  },
-  // Unauthenticated View
-  unauthContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  unauthContent: {
-    alignItems: 'center',
-    maxWidth: 400,
-  },
-  unauthIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#F0F4FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  unauthTitle: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1F2937',
-    textAlign: 'center',
-    marginBottom: 12,
-  },
-  unauthSubtitle: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 32,
-  },
-  benefitsList: {
-    alignSelf: 'stretch',
-    marginBottom: 32,
-  },
-  benefitItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-    gap: 12,
-  },
-  benefitText: {
-    fontSize: 16,
-    color: '#374151',
-    fontWeight: '500',
-  },
-  signInButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#6366F1',
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 12,
-    gap: 8,
-    alignSelf: 'stretch',
-  },
-  signInButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
   },
   // Profile Header
   profileHeader: {
