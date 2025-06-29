@@ -9,7 +9,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { MessageSquare, Send, MoreVertical, Edit, Trash, Clock } from 'lucide-react-native';
+import { MessageSquare, Send, MoveVertical as MoreVertical, CreditCard as Edit, Trash, Clock } from 'lucide-react-native';
 import { useComments, Comment } from '@/hooks/useComments';
 import { useUser } from '@/hooks/useUser';
 import { UserAvatar } from './UserAvatar';
