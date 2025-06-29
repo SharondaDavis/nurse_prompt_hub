@@ -10,27 +10,28 @@ import {
   Alert,
   Modal,
   RefreshControl,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { User, Heart, FileText, Settings, Moon, Sun, LogIn, Bookmark, TrendingUp, Clock, ChevronRight, Award, ThumbsUp, CreditCard as Edit3, Plus, LogOut } from 'lucide-react-native';
+import { User, Heart, FileText, Settings, Moon, Sun, LogIn, Bookmark, TrendingUp, Clock, ChevronRight, Award, ThumbsUp, Edit3, Plus, LogOut } from 'lucide-react-native';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useUser } from '@/hooks/useUser';
 import { useVoting } from '@/hooks/useVoting';
+import { useTheme } from '@/hooks/useTheme';
 import { fetchPromptsByUser, PromptWithUser } from '@/lib/fetchPrompts';
 import { Auth } from '@/components/Auth';
+import { supabase } from '@/lib/supabaseClient';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { user, profile, isLoading: userLoading, signOut } = useUser();
   const { favorites, loading: favoritesLoading } = useFavorites();
   const { votes } = useVoting();
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { theme, toggleTheme, isDark } = useTheme();
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'favorites', 'contributions', 'votes', 'settings'
+  const [showAuth, setShowAuth] = useState(false);
   const [userPrompts, setUserPrompts] = useState<PromptWithUser[]>([]);
   const [loadingPrompts, setLoadingPrompts] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
     if (user && activeTab === 'contributions') {
@@ -60,8 +61,12 @@ export default function ProfileScreen() {
     setRefreshing(false);
   };
 
+  const handleSignIn = () => {
+    setShowAuth(true);
+  };
+
   const handleAuthSuccess = () => {
-    // No need to close modal as we're not using one anymore
+    setShowAuth(false);
   };
 
   const handlePromptPress = (promptId: string) => {
@@ -82,14 +87,11 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              setIsSigningOut(true);
-              await signOut();
-              // No need to navigate - the useUser hook will update the state
-              // and the component will re-render showing the Auth screen
+              await supabase.auth.signOut();
+              // The useUser hook will automatically handle the state update
+              // No need to manually redirect as the component will re-render
             } catch (error) {
               Alert.alert('Error', 'Failed to sign out. Please try again.');
-            } finally {
-              setIsSigningOut(false);
             }
           }
         }
@@ -97,26 +99,76 @@ export default function ProfileScreen() {
     );
   };
 
-  if (userLoading || isSigningOut) {
+  const handleEditProfile = () => {
+    router.push('/profile/edit');
+  };
+
+  if (userLoading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6366F1" />
-          <Text style={styles.loadingText}>
-            {isSigningOut ? 'Signing out...' : 'Loading...'}
-          </Text>
+          <Text style={styles.loadingText}>Loading...</Text>
         </View>
       </SafeAreaView>
     );
   }
 
-  // Show authentication screen if user is not logged in
   if (!user) {
     return (
-      <Auth 
-        onAuthSuccess={handleAuthSuccess}
-        onCancel={() => {}}
-      />
+      <SafeAreaView style={styles.container}>
+        <View style={styles.unauthContainer}>
+          <View style={styles.unauthContent}>
+            <View style={styles.unauthIcon}>
+              <User size={48} color="#6366F1" />
+            </View>
+            
+            <Text style={styles.unauthTitle}>Join the Community</Text>
+            <Text style={styles.unauthSubtitle}>
+              Sign in to save your favorite prompts, track your contributions, and connect with fellow nurses.
+            </Text>
+            
+            <View style={styles.benefitsList}>
+              <View style={styles.benefitItem}>
+                <Heart size={20} color="#EF4444" />
+                <Text style={styles.benefitText}>Save favorite prompts</Text>
+              </View>
+              <View style={styles.benefitItem}>
+                <FileText size={20} color="#10B981" />
+                <Text style={styles.benefitText}>Track your contributions</Text>
+              </View>
+              <View style={styles.benefitItem}>
+                <Award size={20} color="#F59E0B" />
+                <Text style={styles.benefitText}>Build your reputation</Text>
+              </View>
+              <View style={styles.benefitItem}>
+                <ThumbsUp size={20} color="#8B5CF6" />
+                <Text style={styles.benefitText}>Vote on prompts</Text>
+              </View>
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.signInButton}
+              onPress={handleSignIn}
+              activeOpacity={0.9}
+            >
+              <LogIn size={20} color="#FFFFFF" />
+              <Text style={styles.signInButtonText}>Sign In / Sign Up</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Auth Modal */}
+        <Modal
+          visible={showAuth}
+          animationType="slide"
+          presentationStyle="fullScreen"
+        >
+          <Auth
+            onAuthSuccess={handleAuthSuccess}
+            onCancel={() => setShowAuth(false)}
+          />
+        </Modal>
+      </SafeAreaView>
     );
   }
 
@@ -126,7 +178,7 @@ export default function ProfileScreen() {
         <View style={styles.avatar}>
           <User size={32} color="#6366F1" />
         </View>
-        <TouchableOpacity style={styles.editProfileButton}>
+        <TouchableOpacity style={styles.editProfileButton} onPress={handleEditProfile}>
           <Edit3 size={16} color="#6366F1" />
         </TouchableOpacity>
       </View>
@@ -163,7 +215,7 @@ export default function ProfileScreen() {
         style={[styles.tab, activeTab === 'overview' && styles.activeTab]}
         onPress={() => setActiveTab('overview')}
       >
-        <User size={18} color={activeTab === 'overview' ? "#6366F1" : "#6B7280"} />
+        <User size={18} color={activeTab === 'overview' ? '#6366F1' : '#6B7280'} />
         <Text style={[
           styles.tabText,
           activeTab === 'overview' && styles.activeTabText
@@ -176,7 +228,7 @@ export default function ProfileScreen() {
         style={[styles.tab, activeTab === 'favorites' && styles.activeTab]}
         onPress={() => setActiveTab('favorites')}
       >
-        <Heart size={18} color={activeTab === 'favorites' ? "#6366F1" : "#6B7280"} />
+        <Heart size={18} color={activeTab === 'favorites' ? '#6366F1' : '#6B7280'} />
         <Text style={[
           styles.tabText,
           activeTab === 'favorites' && styles.activeTabText
@@ -189,7 +241,7 @@ export default function ProfileScreen() {
         style={[styles.tab, activeTab === 'contributions' && styles.activeTab]}
         onPress={() => setActiveTab('contributions')}
       >
-        <FileText size={18} color={activeTab === 'contributions' ? "#6366F1" : "#6B7280"} />
+        <FileText size={18} color={activeTab === 'contributions' ? '#6366F1' : '#6B7280'} />
         <Text style={[
           styles.tabText,
           activeTab === 'contributions' && styles.activeTabText
@@ -202,7 +254,7 @@ export default function ProfileScreen() {
         style={[styles.tab, activeTab === 'settings' && styles.activeTab]}
         onPress={() => setActiveTab('settings')}
       >
-        <Settings size={18} color={activeTab === 'settings' ? "#6366F1" : "#6B7280"} />
+        <Settings size={18} color={activeTab === 'settings' ? '#6366F1' : '#6B7280'} />
         <Text style={[
           styles.tabText,
           activeTab === 'settings' && styles.activeTabText
@@ -308,36 +360,36 @@ export default function ProfileScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
           }
         >
-          {favorites.map((favorite) => (
+          {favorites.map((prompt) => (
             <TouchableOpacity
-              key={favorite.id}
+              key={prompt.id}
               style={styles.promptCard}
-              onPress={() => handlePromptPress(favorite.prompt_id)}
+              onPress={() => handlePromptPress(prompt.id)}
               activeOpacity={0.9}
             >
               <View style={styles.promptCardHeader}>
                 <View style={styles.promptCategory}>
-                  <Text style={styles.promptCategoryText}>{favorite.prompts.category}</Text>
+                  <Text style={styles.promptCategoryText}>{prompt.category}</Text>
                 </View>
                 <View style={styles.promptVotes}>
                   <TrendingUp size={14} color="#EF4444" />
-                  <Text style={styles.votesText}>{favorite.prompts.votes}</Text>
+                  <Text style={styles.votesText}>{prompt.votes}</Text>
                 </View>
               </View>
               
               <Text style={styles.promptTitle} numberOfLines={2}>
-                {favorite.prompts.title}
+                {prompt.title}
               </Text>
               
               <Text style={styles.promptExcerpt} numberOfLines={2}>
-                {favorite.prompts.content.substring(0, 120)}...
+                {prompt.excerpt}
               </Text>
               
               <View style={styles.promptFooter}>
                 <View style={styles.promptMeta}>
                   <Clock size={12} color="#6B7280" />
                   <Text style={styles.promptDate}>
-                    Saved {new Date(favorite.created_at).toLocaleDateString()}
+                    Saved {new Date(prompt.savedAt).toLocaleDateString()}
                   </Text>
                 </View>
                 <ChevronRight size={16} color="#6B7280" />
@@ -425,7 +477,7 @@ export default function ProfileScreen() {
         <View style={styles.settingItem}>
           <View style={styles.settingInfo}>
             <View style={styles.settingIcon}>
-              {isDarkMode ? (
+              {isDark ? (
                 <Moon size={20} color="#6366F1" />
               ) : (
                 <Sun size={20} color="#F59E0B" />
@@ -439,10 +491,10 @@ export default function ProfileScreen() {
             </View>
           </View>
           <Switch
-            value={isDarkMode}
-            onValueChange={setIsDarkMode}
+            value={isDark}
+            onValueChange={toggleTheme}
             trackColor={{ false: '#E5E7EB', true: '#6366F1' }}
-            thumbColor={isDarkMode ? '#FFFFFF' : '#FFFFFF'}
+            thumbColor={isDark ? '#FFFFFF' : '#FFFFFF'}
           />
         </View>
       </View>
@@ -450,7 +502,7 @@ export default function ProfileScreen() {
       <View style={styles.settingsSection}>
         <Text style={styles.settingsSectionTitle}>Account</Text>
         
-        <TouchableOpacity style={styles.settingItem}>
+        <TouchableOpacity style={styles.settingItem} onPress={handleEditProfile}>
           <View style={styles.settingInfo}>
             <View style={styles.settingIcon}>
               <User size={20} color="#6B7280" />
@@ -459,21 +511,6 @@ export default function ProfileScreen() {
               <Text style={styles.settingTitle}>Edit Profile</Text>
               <Text style={styles.settingDescription}>
                 Update your personal information
-              </Text>
-            </View>
-          </View>
-          <ChevronRight size={16} color="#6B7280" />
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.settingItem}>
-          <View style={styles.settingInfo}>
-            <View style={styles.settingIcon}>
-              <Settings size={20} color="#6B7280" />
-            </View>
-            <View style={styles.settingText}>
-              <Text style={styles.settingTitle}>Preferences</Text>
-              <Text style={styles.settingDescription}>
-                Notification and privacy settings
               </Text>
             </View>
           </View>
@@ -530,7 +567,71 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     color: '#6B7280',
-    marginTop: 12,
+  },
+  // Unauthenticated View
+  unauthContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  unauthContent: {
+    alignItems: 'center',
+    maxWidth: 400,
+  },
+  unauthIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#F0F4FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  unauthTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#1F2937',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  unauthSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 24,
+    marginBottom: 32,
+  },
+  benefitsList: {
+    alignSelf: 'stretch',
+    marginBottom: 32,
+  },
+  benefitItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 12,
+  },
+  benefitText: {
+    fontSize: 16,
+    color: '#374151',
+    fontWeight: '500',
+  },
+  signInButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#6366F1',
+    paddingHorizontal: 32,
+    paddingVertical: 16,
+    borderRadius: 12,
+    gap: 8,
+    alignSelf: 'stretch',
+  },
+  signInButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   // Profile Header
   profileHeader: {
