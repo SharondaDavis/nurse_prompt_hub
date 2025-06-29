@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { supabase } from '@/lib/supabaseClient';
-import { Stethoscope, X, Mail, CheckCircle } from 'lucide-react-native';
+import { Stethoscope, X, Mail, CircleCheck as CheckCircle } from 'lucide-react-native';
 
 interface AuthProps {
   onAuthSuccess?: () => void;
