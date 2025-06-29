@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -44,12 +44,6 @@ const SPECIALTIES = [
   'ltc',
 ];
 
-const DIFFICULTY_LEVELS = [
-  { value: 'beginner', label: 'Beginner' },
-  { value: 'intermediate', label: 'Intermediate' },
-  { value: 'advanced', label: 'Advanced' },
-] as const;
-
 interface ValidationErrors {
   title?: string;
   content?: string;
@@ -64,7 +58,6 @@ export function PromptForm({ onSuccess, onCancel }: PromptFormProps) {
   const [specialty, setSpecialty] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
-  const [difficultyLevel, setDifficultyLevel] = useState<'beginner' | 'intermediate' | 'advanced'>('beginner');
   const [isAnonymous, setIsAnonymous] = useState(true); // Default to anonymous
   const [errors, setErrors] = useState<ValidationErrors>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
@@ -114,7 +107,7 @@ export function PromptForm({ onSuccess, onCancel }: PromptFormProps) {
   };
 
   // Real-time validation
-  useEffect(() => {
+  React.useEffect(() => {
     const newErrors = validateForm();
     setErrors(newErrors);
   }, [title, content, category, specialty]);
@@ -146,7 +139,6 @@ export function PromptForm({ onSuccess, onCancel }: PromptFormProps) {
     setSpecialty('');
     setTags([]);
     setNewTag('');
-    setDifficultyLevel('beginner');
     setIsAnonymous(true);
     setErrors({});
     setTouched({});
@@ -172,7 +164,7 @@ export function PromptForm({ onSuccess, onCancel }: PromptFormProps) {
       category,
       specialty,
       tags,
-      difficulty_level: difficultyLevel,
+      difficulty_level: 'beginner' as const, // Default to beginner, but won't be shown in UI
       is_anonymous: isAnonymous,
     };
 
@@ -382,31 +374,6 @@ export function PromptForm({ onSuccess, onCancel }: PromptFormProps) {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Difficulty Level</Text>
-              <View style={styles.difficultyContainer}>
-                {DIFFICULTY_LEVELS.map((level) => (
-                  <TouchableOpacity
-                    key={level.value}
-                    style={[
-                      styles.difficultyOption,
-                      difficultyLevel === level.value && styles.selectedDifficultyOption,
-                    ]}
-                    onPress={() => setDifficultyLevel(level.value)}
-                  >
-                    <Text
-                      style={[
-                        styles.difficultyText,
-                        difficultyLevel === level.value && styles.selectedDifficultyText,
-                      ]}
-                    >
-                      {level.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.inputGroup}>
               <Text style={styles.label}>Tags (Optional)</Text>
               <View style={styles.tagInputContainer}>
                 <TextInput
@@ -433,9 +400,9 @@ export function PromptForm({ onSuccess, onCancel }: PromptFormProps) {
                 <View style={styles.tagsContainer}>
                   {tags.map((tag, index) => (
                     <View key={index} style={styles.tag}>
-                      <Text style={styles.tagText}>{tag}</Text>
+                      <Text style={styles.tagText}>#{tag}</Text>
                       <TouchableOpacity onPress={() => removeTag(tag)}>
-                        <X size={16} color="#7D3C98" />
+                        <X size={14} color="#7D3C98" />
                       </TouchableOpacity>
                     </View>
                   ))}
@@ -640,36 +607,6 @@ const styles = StyleSheet.create({
   selectedOptionText: {
     color: '#FFFFFF',
     fontWeight: '600',
-  },
-  difficultyContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  difficultyOption: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingVertical: 12,
-    backgroundColor: '#F9F9F9',
-    borderRadius: 8,
-    marginHorizontal: 4,
-    borderWidth: 1,
-    borderColor: 'transparent',
-    minHeight: 44,
-  },
-  selectedDifficultyOption: {
-    backgroundColor: '#7D3C98',
-    borderColor: '#7D3C98',
-  },
-  difficultyText: {
-    fontSize: 14,
-    color: '#333333',
-    fontWeight: '600',
-    textAlign: 'center',
-  },
-  selectedDifficultyText: {
-    color: '#FFFFFF',
   },
   tagInputContainer: {
     flexDirection: 'row',

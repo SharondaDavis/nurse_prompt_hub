@@ -159,19 +159,6 @@ export function PromptList({
           )}
         </View>
       )}
-
-      <View style={styles.difficultyContainer}>
-        <Text
-          style={[
-            styles.difficultyBadge,
-            item.difficulty_level === 'beginner' && styles.beginnerBadge,
-            item.difficulty_level === 'intermediate' && styles.intermediateBadge,
-            item.difficulty_level === 'advanced' && styles.advancedBadge,
-          ]}
-        >
-          {item.difficulty_level}
-        </Text>
-      </View>
     </TouchableOpacity>
   );
 
@@ -431,29 +418,6 @@ const styles = StyleSheet.create({
     color: '#999999',
     fontStyle: 'italic',
     fontWeight: '500',
-  },
-  difficultyContainer: {
-    alignItems: 'flex-end',
-  },
-  difficultyBadge: {
-    fontSize: 11,
-    fontWeight: '600',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-    textTransform: 'capitalize',
-  },
-  beginnerBadge: {
-    backgroundColor: '#E8F5E8',
-    color: '#2E7D32',
-  },
-  intermediateBadge: {
-    backgroundColor: '#FFF3E0',
-    color: '#F57C00',
-  },
-  advancedBadge: {
-    backgroundColor: '#FFEBEE',
-    color: '#D32F2F',
   },
   centerContainer: {
     flex: 1,

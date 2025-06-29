@@ -222,22 +222,12 @@ export default function SearchScreen() {
       </Text>
       
       <View style={styles.promptFooter}>
-        <View style={[
-          styles.difficultyBadge,
-          item.difficulty_level === 'beginner' && styles.beginnerBadge,
-          item.difficulty_level === 'intermediate' && styles.intermediateBadge,
-          item.difficulty_level === 'advanced' && styles.advancedBadge,
-        ]}>
-          <Text style={[
-            styles.difficultyText,
-            item.difficulty_level === 'beginner' && styles.beginnerText,
-            item.difficulty_level === 'intermediate' && styles.intermediateText,
-            item.difficulty_level === 'advanced' && styles.advancedText,
-          ]}>
-            {item.difficulty_level}
+        <View style={styles.promptMeta}>
+          <Clock size={12} color="#6B7280" />
+          <Text style={styles.metaText}>
+            {new Date(item.created_at).toLocaleDateString()}
           </Text>
         </View>
-        <Clock size={12} color="#6B7280" />
       </View>
     </TouchableOpacity>
   );
@@ -609,35 +599,17 @@ const styles = StyleSheet.create({
   },
   promptFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
   },
-  difficultyBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
+  promptMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
-  beginnerBadge: {
-    backgroundColor: '#DCFCE7',
-  },
-  intermediateBadge: {
-    backgroundColor: '#FEF3C7',
-  },
-  advancedBadge: {
-    backgroundColor: '#FEE2E2',
-  },
-  difficultyText: {
+  metaText: {
     fontSize: 10,
-    fontWeight: '600',
-    textTransform: 'capitalize',
-  },
-  beginnerText: {
-    color: '#166534',
-  },
-  intermediateText: {
-    color: '#92400E',
-  },
-  advancedText: {
-    color: '#991B1B',
+    color: '#6B7280',
+    fontWeight: '500',
   },
 });
