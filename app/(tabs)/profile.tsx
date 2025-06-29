@@ -10,9 +10,10 @@ import {
   Alert,
   Modal,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { User, Heart, FileText, Settings, Moon, Sun, LogIn, Bookmark, TrendingUp, Clock, ChevronRight, Award, ThumbsUp, CreditCard as Edit3, Plus } from 'lucide-react-native';
+import { User, Heart, FileText, Settings, Moon, Sun, LogIn, Bookmark, TrendingUp, Clock, ChevronRight, Award, ThumbsUp, CreditCard as Edit3, Plus, LogOut } from 'lucide-react-native';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useUser } from '@/hooks/useUser';
 import { useVoting } from '@/hooks/useVoting';
@@ -26,10 +27,10 @@ export default function ProfileScreen() {
   const { votes } = useVoting();
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'favorites', 'contributions', 'votes', 'settings'
-  const [showAuth, setShowAuth] = useState(false);
   const [userPrompts, setUserPrompts] = useState<PromptWithUser[]>([]);
   const [loadingPrompts, setLoadingPrompts] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
     if (user && activeTab === 'contributions') {
@@ -59,12 +60,8 @@ export default function ProfileScreen() {
     setRefreshing(false);
   };
 
-  const handleSignIn = () => {
-    setShowAuth(true);
-  };
-
   const handleAuthSuccess = () => {
-    setShowAuth(false);
+    // No need to close modal as we're not using one anymore
   };
 
   const handlePromptPress = (promptId: string) => {
@@ -85,9 +82,14 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              setIsSigningOut(true);
               await signOut();
+              // No need to navigate - the useUser hook will update the state
+              // and the component will re-render showing the Auth screen
             } catch (error) {
               Alert.alert('Error', 'Failed to sign out. Please try again.');
+            } finally {
+              setIsSigningOut(false);
             }
           }
         }
@@ -95,11 +97,14 @@ export default function ProfileScreen() {
     );
   };
 
-  if (userLoading) {
+  if (userLoading || isSigningOut) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
+          <ActivityIndicator size="large" color="#6366F1" />
+          <Text style={styles.loadingText}>
+            {isSigningOut ? 'Signing out...' : 'Loading...'}
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -478,7 +483,7 @@ export default function ProfileScreen() {
         <TouchableOpacity style={styles.settingItem} onPress={handleSignOut}>
           <View style={styles.settingInfo}>
             <View style={[styles.settingIcon, styles.signOutIcon]}>
-              <LogIn size={20} color="#EF4444" />
+              <LogOut size={20} color="#EF4444" />
             </View>
             <View style={styles.settingText}>
               <Text style={[styles.settingTitle, styles.signOutText]}>Sign Out</Text>
@@ -525,6 +530,7 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     color: '#6B7280',
+    marginTop: 12,
   },
   // Profile Header
   profileHeader: {

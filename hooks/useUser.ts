@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { User } from '@supabase/supabase-js';
 import { Database } from '@/types/database';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type UserProfile = Database['public']['Tables']['user_profiles']['Row'];
 
@@ -158,21 +159,68 @@ export function useUser() {
   };
 
   const signOut = async () => {
-    // Check if Supabase is properly configured
-    const isSupabaseConfigured = 
-      process.env.EXPO_PUBLIC_SUPABASE_URL && 
-      process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY &&
-      process.env.EXPO_PUBLIC_SUPABASE_URL !== 'https://your-project-id.supabase.co' &&
-      process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY !== 'your-anon-key-here';
+    try {
+      setIsLoading(true);
+      
+      // Check if Supabase is properly configured
+      const isSupabaseConfigured = 
+        process.env.EXPO_PUBLIC_SUPABASE_URL && 
+        process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY &&
+        process.env.EXPO_PUBLIC_SUPABASE_URL !== 'https://your-project-id.supabase.co' &&
+        process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY !== 'your-anon-key-here';
 
-    if (!isSupabaseConfigured) {
-      // Mock sign out for demo
+      if (!isSupabaseConfigured) {
+        // Mock sign out for demo
+        await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
+        setUser(null);
+        setProfile(null);
+        
+        // Clear any stored data
+        try {
+          await AsyncStorage.multiRemove([
+            'favorites',
+            'votes',
+            'user-settings',
+            'recent-prompts'
+          ]);
+        } catch (err) {
+          console.error('Error clearing storage during sign out:', err);
+        }
+        
+        return true;
+      }
+
+      // Real sign out with Supabase
+      const { error } = await supabase.auth.signOut();
+      
+      if (error) {
+        console.error('Error signing out:', error);
+        throw error;
+      }
+      
+      // Clear any stored data
+      try {
+        await AsyncStorage.multiRemove([
+          'favorites',
+          'votes',
+          'user-settings',
+          'recent-prompts'
+        ]);
+      } catch (err) {
+        console.error('Error clearing storage during sign out:', err);
+      }
+      
+      // Explicitly clear user and profile state
       setUser(null);
       setProfile(null);
-      return;
+      
+      return true;
+    } catch (error) {
+      console.error('Error during sign out:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
     }
-
-    await supabase.auth.signOut();
   };
 
   return {
