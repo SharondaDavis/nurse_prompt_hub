@@ -10,6 +10,7 @@ import {
   Alert,
   Modal,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { User, Heart, FileText, Settings, Moon, Sun, LogIn, Bookmark, TrendingUp, Clock, ChevronRight, Award, ThumbsUp, CreditCard as Edit3, Plus, LogOut } from 'lucide-react-native';
@@ -23,15 +24,16 @@ import { supabase } from '@/lib/supabaseClient';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, profile, isLoading: userLoading, signOut } = useUser();
+  const { user, profile, isLoading: userLoading } = useUser();
   const { favorites, loading: favoritesLoading } = useFavorites();
   const { votes } = useVoting();
   const { theme, toggleTheme, isDark } = useTheme();
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'favorites', 'contributions', 'votes', 'settings'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'favorites', 'contributions', 'settings'
   const [showAuth, setShowAuth] = useState(false);
   const [userPrompts, setUserPrompts] = useState<PromptWithUser[]>([]);
   const [loadingPrompts, setLoadingPrompts] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   useEffect(() => {
     if (user && activeTab === 'contributions') {
@@ -76,6 +78,10 @@ export default function ProfileScreen() {
     });
   };
 
+  const handleEditProfile = () => {
+    router.push('/profile/edit');
+  };
+
   const handleSignOut = async () => {
     Alert.alert(
       'Sign Out',
@@ -87,11 +93,14 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              setIsSigningOut(true);
               await supabase.auth.signOut();
               // The useUser hook will automatically handle the state update
               // No need to manually redirect as the component will re-render
             } catch (error) {
               Alert.alert('Error', 'Failed to sign out. Please try again.');
+            } finally {
+              setIsSigningOut(false);
             }
           }
         }
@@ -99,15 +108,14 @@ export default function ProfileScreen() {
     );
   };
 
-  const handleEditProfile = () => {
-    router.push('/profile/edit');
-  };
-
-  if (userLoading) {
+  if (userLoading || isSigningOut) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <Text style={styles.loadingText}>Loading...</Text>
+          <ActivityIndicator size="large" color="#6366F1" />
+          <Text style={styles.loadingText}>
+            {isSigningOut ? 'Signing out...' : 'Loading...'}
+          </Text>
         </View>
       </SafeAreaView>
     );
@@ -360,36 +368,36 @@ export default function ProfileScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
           }
         >
-          {favorites.map((prompt) => (
+          {favorites.map((favorite) => (
             <TouchableOpacity
-              key={prompt.id}
+              key={favorite.id}
               style={styles.promptCard}
-              onPress={() => handlePromptPress(prompt.id)}
+              onPress={() => handlePromptPress(favorite.prompt_id)}
               activeOpacity={0.9}
             >
               <View style={styles.promptCardHeader}>
                 <View style={styles.promptCategory}>
-                  <Text style={styles.promptCategoryText}>{prompt.category}</Text>
+                  <Text style={styles.promptCategoryText}>{favorite.prompts.category}</Text>
                 </View>
                 <View style={styles.promptVotes}>
                   <TrendingUp size={14} color="#EF4444" />
-                  <Text style={styles.votesText}>{prompt.votes}</Text>
+                  <Text style={styles.votesText}>{favorite.prompts.votes}</Text>
                 </View>
               </View>
               
               <Text style={styles.promptTitle} numberOfLines={2}>
-                {prompt.title}
+                {favorite.prompts.title}
               </Text>
               
               <Text style={styles.promptExcerpt} numberOfLines={2}>
-                {prompt.excerpt}
+                {favorite.prompts.content.substring(0, 150)}...
               </Text>
               
               <View style={styles.promptFooter}>
                 <View style={styles.promptMeta}>
                   <Clock size={12} color="#6B7280" />
                   <Text style={styles.promptDate}>
-                    Saved {new Date(prompt.savedAt).toLocaleDateString()}
+                    Saved {new Date(favorite.created_at).toLocaleDateString()}
                   </Text>
                 </View>
                 <ChevronRight size={16} color="#6B7280" />
