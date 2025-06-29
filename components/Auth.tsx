@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { supabase } from '@/lib/supabaseClient';
-import { Stethoscope, X, Mail, CircleCheck as CheckCircle } from 'lucide-react-native';
+import { Stethoscope, X, Mail, CircleCheck as CheckCircle, Eye, EyeOff } from 'lucide-react-native';
 
 interface AuthProps {
   onAuthSuccess?: () => void;
@@ -29,6 +29,7 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [showEmailSent, setShowEmailSent] = useState(false);
   const [pendingEmail, setPendingEmail] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   // Check if Supabase is properly configured
   const isSupabaseConfigured = 
@@ -180,6 +181,10 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
     }, 500);
   };
 
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
+  };
+
   // Email confirmation success screen
   if (showEmailSent) {
     return (
@@ -323,14 +328,26 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
               placeholderTextColor="#9CA3AF"
             />
 
-            <TextInput
-              style={styles.input}
-              placeholder="Password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              placeholderTextColor="#9CA3AF"
-            />
+            <View style={styles.passwordContainer}>
+              <TextInput
+                style={styles.passwordInput}
+                placeholder="Password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                placeholderTextColor="#9CA3AF"
+              />
+              <TouchableOpacity 
+                style={styles.passwordToggle}
+                onPress={togglePasswordVisibility}
+              >
+                {showPassword ? (
+                  <EyeOff size={20} color="#6B7280" />
+                ) : (
+                  <Eye size={20} color="#6B7280" />
+                )}
+              </TouchableOpacity>
+            </View>
 
             {isSignUp && (
               <>
@@ -505,6 +522,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginBottom: 16,
     color: '#1F2937',
+  },
+  passwordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 12,
+    marginBottom: 16,
+  },
+  passwordInput: {
+    flex: 1,
+    padding: 16,
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  passwordToggle: {
+    padding: 16,
   },
   passwordRequirements: {
     marginBottom: 16,
