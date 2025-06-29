@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabaseClient';
-import { CircleCheck as CheckCircle, Circle as XCircle, Stethoscope } from 'lucide-react-native';
+import { CheckCircle, XCircle, Stethoscope } from 'lucide-react-native';
 
 export default function AuthCallback() {
   const router = useRouter();

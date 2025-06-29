@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { supabase } from '@/lib/supabaseClient';
-import { Stethoscope, X, Mail, CircleCheck as CheckCircle } from 'lucide-react-native';
+import { Stethoscope, X, Mail, CheckCircle } from 'lucide-react-native';
 
 interface AuthProps {
   onAuthSuccess?: () => void;
@@ -117,12 +117,15 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
 
     setIsLoading(true);
     
+    // Get the current URL for redirect
+    const currentUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    
     // Sign up with email confirmation required
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        emailRedirectTo: `${currentUrl}/auth/callback`,
         data: {
           username,
           full_name: fullName,
@@ -151,11 +154,13 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
     if (!isSupabaseConfigured) return;
 
     setIsLoading(true);
+    const currentUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    
     const { error } = await supabase.auth.resend({
       type: 'signup',
       email: emailAddress,
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback`
+        emailRedirectTo: `${currentUrl}/auth/callback`
       }
     });
 
