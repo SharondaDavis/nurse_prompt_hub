@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,10 +8,13 @@ import {
   RefreshControl,
   Dimensions,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
-import { Heart, Calendar, Tag, TrendingUp, Clock, User, Plus, Building2 } from 'lucide-react-native';
+import { Heart, Calendar, Tag, TrendingUp, Clock, User, Plus, Building2, ThumbsUp } from 'lucide-react-native';
 import { PromptWithUser } from '@/lib/fetchPrompts';
 import { UserAvatar } from './UserAvatar';
+import { useVoting } from '@/hooks/useVoting';
+import { useUser } from '@/hooks/useUser';
 
 interface PromptListProps {
   prompts: PromptWithUser[];
@@ -43,6 +46,67 @@ export function PromptList({
 }: PromptListProps) {
   const numColumns = isTablet ? 2 : 1;
   const cardWidth = isTablet ? (screenWidth - 60) / 2 : screenWidth - 40;
+  const { user } = useUser();
+  const { hasVoted, toggleVote, getVoteCount, getVoteCountSync } = useVoting();
+  const [localVoteCounts, setLocalVoteCounts] = useState<Record<string, number>>({});
+
+  // Load vote counts for visible prompts
+  useEffect(() => {
+    const loadVoteCounts = async () => {
+      const counts: Record<string, number> = {};
+      for (const prompt of prompts) {
+        // Use the votes_count from the prompt if available, otherwise fetch it
+        if (prompt.votes_count !== undefined) {
+          counts[prompt.id] = prompt.votes_count;
+        } else {
+          counts[prompt.id] = await getVoteCount(prompt.id);
+        }
+      }
+      setLocalVoteCounts(counts);
+    };
+
+    if (prompts.length > 0) {
+      loadVoteCounts();
+    }
+  }, [prompts, getVoteCount]);
+
+  const handleVoteToggle = async (promptId: string, event: any) => {
+    // Prevent the prompt card from being pressed when voting
+    event.stopPropagation();
+
+    if (!user) {
+      Alert.alert(
+        'Sign In Required',
+        'You need to be signed in to vote on prompts.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    try {
+      const wasVoted = hasVoted(promptId);
+      await toggleVote(promptId);
+      
+      // Update local vote count optimistically
+      setLocalVoteCounts(prev => ({
+        ...prev,
+        [promptId]: wasVoted 
+          ? Math.max(0, (prev[promptId] || 0) - 1)
+          : (prev[promptId] || 0) + 1
+      }));
+    } catch (error) {
+      console.error('Error toggling vote:', error);
+      Alert.alert(
+        'Error',
+        error instanceof Error ? error.message : 'Failed to update vote. Please try again.'
+      );
+    }
+  };
+
+  const getDisplayVoteCount = (promptId: string): number => {
+    // Use local count if available, otherwise fall back to sync count or prompt votes
+    return localVoteCounts[promptId] ?? getVoteCountSync(promptId) ?? 0;
+  };
 
   const renderAttribution = (item: PromptWithUser) => {
     // Built-in prompts (created_by is null)
@@ -101,66 +165,90 @@ export function PromptList({
     );
   };
 
-  const renderPrompt = ({ item }: { item: PromptWithUser }) => (
-    <TouchableOpacity
-      style={[styles.promptCard, { width: cardWidth }]}
-      onPress={() => onPromptPress(item)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.promptHeader}>
-        <View style={styles.promptTitleContainer}>
-          <Text style={styles.promptTitle} numberOfLines={2}>
-            {item.title}
-          </Text>
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{item.category.replace('-', ' ')}</Text>
-          </View>
-        </View>
-      </View>
+  const renderPrompt = ({ item }: { item: PromptWithUser }) => {
+    const voteCount = getDisplayVoteCount(item.id);
+    const userHasVoted = hasVoted(item.id);
 
-      <Text style={styles.promptContent} numberOfLines={3}>
-        {item.content}
-      </Text>
-
-      {/* Attribution Section */}
-      {renderAttribution(item)}
-
-      <View style={styles.promptMeta}>
-        <View style={styles.metaRow}>
-          <View style={styles.metaItem}>
-            <Calendar size={14} color="#666666" />
-            <Text style={styles.metaText}>
-              {new Date(item.created_at).toLocaleDateString()}
+    return (
+      <TouchableOpacity
+        style={[styles.promptCard, { width: cardWidth }]}
+        onPress={() => onPromptPress(item)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.promptHeader}>
+          <View style={styles.promptTitleContainer}>
+            <Text style={styles.promptTitle} numberOfLines={2}>
+              {item.title}
             </Text>
-          </View>
-          
-          <View style={styles.metaItem}>
-            <User size={14} color="#666666" />
-            <Text style={styles.metaText}>{item.specialty?.toUpperCase() || 'GENERAL'}</Text>
-          </View>
-          
-          <View style={styles.votesContainer}>
-            <TrendingUp size={14} color="#7D3C98" />
-            <Text style={styles.votesText}>{item.votes}</Text>
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryText}>{item.category.replace('-', ' ')}</Text>
+            </View>
           </View>
         </View>
-      </View>
 
-      {item.tags && item.tags.length > 0 && (
-        <View style={styles.tagsContainer}>
-          <Tag size={12} color="#666666" />
-          {item.tags.slice(0, 3).map((tag, index) => (
-            <Text key={index} style={styles.tag}>
-              {tag}
-            </Text>
-          ))}
-          {item.tags.length > 3 && (
-            <Text style={styles.moreTagsText}>+{item.tags.length - 3}</Text>
-          )}
+        <Text style={styles.promptContent} numberOfLines={3}>
+          {item.content}
+        </Text>
+
+        {/* Attribution Section */}
+        {renderAttribution(item)}
+
+        <View style={styles.promptMeta}>
+          <View style={styles.metaRow}>
+            <View style={styles.metaItem}>
+              <Calendar size={14} color="#666666" />
+              <Text style={styles.metaText}>
+                {new Date(item.created_at).toLocaleDateString()}
+              </Text>
+            </View>
+            
+            <View style={styles.metaItem}>
+              <User size={14} color="#666666" />
+              <Text style={styles.metaText}>{item.specialty?.toUpperCase() || 'GENERAL'}</Text>
+            </View>
+          </View>
         </View>
-      )}
-    </TouchableOpacity>
-  );
+
+        {item.tags && item.tags.length > 0 && (
+          <View style={styles.tagsContainer}>
+            <Tag size={12} color="#666666" />
+            {item.tags.slice(0, 3).map((tag, index) => (
+              <Text key={index} style={styles.tag}>
+                {tag}
+              </Text>
+            ))}
+            {item.tags.length > 3 && (
+              <Text style={styles.moreTagsText}>+{item.tags.length - 3}</Text>
+            )}
+          </View>
+        )}
+
+        {/* Vote Section */}
+        <View style={styles.voteSection}>
+          <TouchableOpacity
+            style={[
+              styles.voteButton,
+              userHasVoted && styles.voteButtonActive
+            ]}
+            onPress={(event) => handleVoteToggle(item.id, event)}
+            activeOpacity={0.7}
+          >
+            <ThumbsUp 
+              size={16} 
+              color={userHasVoted ? "#FFFFFF" : "#7D3C98"}
+              fill={userHasVoted ? "#FFFFFF" : "none"}
+            />
+            <Text style={[
+              styles.voteText,
+              userHasVoted && styles.voteTextActive
+            ]}>
+              {voteCount}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </TouchableOpacity>
+    );
+  };
 
   const renderLoadMoreButton = () => {
     if (!hasMore && !loadingMore) return null;
@@ -383,20 +471,6 @@ const styles = StyleSheet.create({
     color: '#666666',
     fontWeight: '500',
   },
-  votesContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F3E8FF',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 6,
-    gap: 3,
-  },
-  votesText: {
-    fontSize: 12,
-    color: '#7D3C98',
-    fontWeight: '600',
-  },
   tagsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -418,6 +492,35 @@ const styles = StyleSheet.create({
     color: '#999999',
     fontStyle: 'italic',
     fontWeight: '500',
+  },
+  voteSection: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  voteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3E8FF',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#7D3C98',
+    gap: 6,
+  },
+  voteButtonActive: {
+    backgroundColor: '#7D3C98',
+    borderColor: '#7D3C98',
+  },
+  voteText: {
+    fontSize: 14,
+    color: '#7D3C98',
+    fontWeight: '600',
+  },
+  voteTextActive: {
+    color: '#FFFFFF',
   },
   centerContainer: {
     flex: 1,

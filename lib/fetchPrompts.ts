@@ -4,13 +4,14 @@ import { mockPrompts, mockUserProfiles } from './mockData';
 
 type Prompt = Database['public']['Tables']['prompts']['Row'];
 
-// Extended prompt type with user profile information
+// Extended prompt type with user profile information and vote count
 export interface PromptWithUser extends Prompt {
   user_profiles?: {
     username: string;
     full_name?: string;
     specialty?: string;
   };
+  votes_count?: number; // Add vote count to the interface
 }
 
 export interface FetchPromptsOptions {
@@ -58,13 +59,22 @@ export async function fetchPrompts(options: FetchPromptsOptions = {}): Promise<P
       );
     }
 
-    // Add mock user profile data
+    // Sort by votes (descending) then by created_at (descending)
+    filtered.sort((a, b) => {
+      if (b.votes !== a.votes) {
+        return b.votes - a.votes;
+      }
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
+    // Add mock user profile data and vote counts
     const promptsWithUsers: PromptWithUser[] = filtered.slice(offset, offset + limit).map(prompt => {
       // Handle built-in prompts (created_by is null) and anonymous prompts
       if (!prompt.created_by || prompt.is_anonymous) {
         return {
           ...prompt,
           user_profiles: undefined, // No user profile for built-in or anonymous prompts
+          votes_count: prompt.votes, // Use the votes field as votes_count
         };
       }
 
@@ -79,7 +89,8 @@ export async function fetchPrompts(options: FetchPromptsOptions = {}): Promise<P
           username: 'anonymous_nurse',
           full_name: 'Anonymous Nurse',
           specialty: 'General',
-        }
+        },
+        votes_count: prompt.votes, // Use the votes field as votes_count
       };
     });
 
@@ -95,7 +106,8 @@ export async function fetchPrompts(options: FetchPromptsOptions = {}): Promise<P
         username,
         full_name,
         specialty
-      )
+      ),
+      votes_count:votes(count)
     `);
 
   // Apply full-text search if search term is provided
@@ -122,14 +134,13 @@ export async function fetchPrompts(options: FetchPromptsOptions = {}): Promise<P
     query = query.eq('specialty', specialty);
   }
 
-  // Order by relevance for search queries, otherwise by creation date
+  // Order by vote count (descending) first, then by creation date for search queries
   if (search && search.trim()) {
-    // For search queries, PostgreSQL will automatically order by relevance (ts_rank)
-    // We can add a secondary sort by created_at for ties
-    query = query.order('created_at', { ascending: false });
+    // For search queries, we'll sort by relevance and vote count
+    query = query.order('votes', { ascending: false }).order('created_at', { ascending: false });
   } else {
-    // For non-search queries, order by creation date
-    query = query.order('created_at', { ascending: false });
+    // For non-search queries, order by vote count first, then creation date
+    query = query.order('votes', { ascending: false }).order('created_at', { ascending: false });
   }
 
   // Apply pagination
@@ -142,7 +153,13 @@ export async function fetchPrompts(options: FetchPromptsOptions = {}): Promise<P
     throw error;
   }
 
-  return data as PromptWithUser[];
+  // Transform the data to include vote counts
+  const promptsWithVotes = data?.map(prompt => ({
+    ...prompt,
+    votes_count: Array.isArray(prompt.votes_count) ? prompt.votes_count.length : (prompt.votes_count || 0),
+  })) || [];
+
+  return promptsWithVotes as PromptWithUser[];
 }
 
 export async function fetchPromptsByUser(userId: string): Promise<PromptWithUser[]> {
@@ -155,11 +172,21 @@ export async function fetchPromptsByUser(userId: string): Promise<PromptWithUser
 
   if (!isSupabaseConfigured) {
     const filtered = mockPrompts.filter(prompt => prompt.created_by === userId);
+    
+    // Sort by votes then by created_at
+    filtered.sort((a, b) => {
+      if (b.votes !== a.votes) {
+        return b.votes - a.votes;
+      }
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+
     return filtered.map(prompt => {
       if (!prompt.created_by || prompt.is_anonymous) {
         return {
           ...prompt,
           user_profiles: undefined,
+          votes_count: prompt.votes,
         };
       }
 
@@ -174,7 +201,8 @@ export async function fetchPromptsByUser(userId: string): Promise<PromptWithUser
           username: 'anonymous_nurse',
           full_name: 'Anonymous Nurse',
           specialty: 'General',
-        }
+        },
+        votes_count: prompt.votes,
       };
     });
   }
@@ -187,9 +215,11 @@ export async function fetchPromptsByUser(userId: string): Promise<PromptWithUser
         username,
         full_name,
         specialty
-      )
+      ),
+      votes_count:votes(count)
     `)
     .eq('created_by', userId)
+    .order('votes', { ascending: false })
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -197,7 +227,13 @@ export async function fetchPromptsByUser(userId: string): Promise<PromptWithUser
     throw error;
   }
 
-  return data as PromptWithUser[];
+  // Transform the data to include vote counts
+  const promptsWithVotes = data?.map(prompt => ({
+    ...prompt,
+    votes_count: Array.isArray(prompt.votes_count) ? prompt.votes_count.length : (prompt.votes_count || 0),
+  })) || [];
+
+  return promptsWithVotes as PromptWithUser[];
 }
 
 export async function fetchPromptById(id: string): Promise<PromptWithUser | null> {
@@ -216,6 +252,7 @@ export async function fetchPromptById(id: string): Promise<PromptWithUser | null
       return {
         ...prompt,
         user_profiles: undefined,
+        votes_count: prompt.votes,
       };
     }
 
@@ -230,7 +267,8 @@ export async function fetchPromptById(id: string): Promise<PromptWithUser | null
         username: 'anonymous_nurse',
         full_name: 'Anonymous Nurse',
         specialty: 'General',
-      }
+      },
+      votes_count: prompt.votes,
     };
   }
 
@@ -242,7 +280,8 @@ export async function fetchPromptById(id: string): Promise<PromptWithUser | null
         username,
         full_name,
         specialty
-      )
+      ),
+      votes_count:votes(count)
     `)
     .eq('id', id)
     .single();
@@ -252,7 +291,13 @@ export async function fetchPromptById(id: string): Promise<PromptWithUser | null
     throw error;
   }
 
-  return data as PromptWithUser;
+  // Transform the data to include vote count
+  const promptWithVotes = {
+    ...data,
+    votes_count: Array.isArray(data.votes_count) ? data.votes_count.length : (data.votes_count || 0),
+  };
+
+  return promptWithVotes as PromptWithUser;
 }
 
 // New function to get total count for pagination
@@ -327,62 +372,6 @@ export async function getTotalPromptsCount(options: Omit<FetchPromptsOptions, 'l
   }
 
   return count || 0;
-}
-
-export async function voteOnPrompt(promptId: string, increment: boolean = true) {
-  // Check if Supabase is properly configured
-  const isSupabaseConfigured = 
-    process.env.EXPO_PUBLIC_SUPABASE_URL && 
-    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY &&
-    process.env.EXPO_PUBLIC_SUPABASE_URL !== 'https://your-project-id.supabase.co' &&
-    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY !== 'your-anon-key-here';
-
-  if (!isSupabaseConfigured) {
-    // Mock voting for demo purposes
-    const prompt = mockPrompts.find(p => p.id === promptId);
-    if (prompt) {
-      prompt.votes = increment ? prompt.votes + 1 : Math.max(0, prompt.votes - 1);
-      return prompt;
-    }
-    throw new Error('Prompt not found');
-  }
-
-  const { data: { user } } = await supabase.auth.getUser();
-  
-  if (!user) {
-    throw new Error('User not authenticated');
-  }
-
-  // First, get the current vote count
-  const { data: currentPrompt, error: fetchError } = await supabase
-    .from('prompts')
-    .select('votes')
-    .eq('id', promptId)
-    .single();
-
-  if (fetchError) {
-    console.error('Error fetching current votes:', fetchError);
-    throw fetchError;
-  }
-
-  // Update the vote count
-  const newVoteCount = increment 
-    ? currentPrompt.votes + 1 
-    : Math.max(0, currentPrompt.votes - 1);
-
-  const { data, error } = await supabase
-    .from('prompts')
-    .update({ votes: newVoteCount })
-    .eq('id', promptId)
-    .select()
-    .single();
-
-  if (error) {
-    console.error('Error updating votes:', error);
-    throw error;
-  }
-
-  return data;
 }
 
 // Enhanced search function with advanced full-text search capabilities

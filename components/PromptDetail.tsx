@@ -9,10 +9,13 @@ import {
   Platform,
 } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { X, Bell } from 'lucide-react-native';
+import { X, Bell, ThumbsUp, Share2, Copy } from 'lucide-react-native';
 import { PromptWithUser } from '@/lib/fetchPrompts';
 import { UserAvatar } from './UserAvatar';
 import { ReminderButton } from './ReminderButton';
+import { useVoting } from '@/hooks/useVoting';
+import { useUser } from '@/hooks/useUser';
+import * as Clipboard from 'expo-clipboard';
 
 interface PromptDetailProps {
   prompt: PromptWithUser;
@@ -29,13 +32,29 @@ Notifications.setNotificationHandler({
 });
 
 export function PromptDetail({ prompt, onClose }: PromptDetailProps) {
+  const { user } = useUser();
+  const { hasVoted, toggleVote, getVoteCount } = useVoting();
   const [permissionStatus, setPermissionStatus] = useState<'granted' | 'denied' | 'undetermined'>('undetermined');
+  const [voteCount, setVoteCount] = useState(prompt.votes_count || prompt.votes || 0);
+  const [isVoting, setIsVoting] = useState(false);
 
   useEffect(() => {
     if (Platform.OS !== 'web') {
       requestNotificationPermissions();
     }
+    
+    // Load current vote count
+    loadVoteCount();
   }, []);
+
+  const loadVoteCount = async () => {
+    try {
+      const count = await getVoteCount(prompt.id);
+      setVoteCount(count);
+    } catch (error) {
+      console.error('Error loading vote count:', error);
+    }
+  };
 
   const requestNotificationPermissions = async () => {
     try {
@@ -51,6 +70,54 @@ export function PromptDetail({ prompt, onClose }: PromptDetailProps) {
     } catch (error) {
       console.error('Error requesting notification permissions:', error);
       setPermissionStatus('denied');
+    }
+  };
+
+  const handleVoteToggle = async () => {
+    if (!user) {
+      Alert.alert(
+        'Sign In Required',
+        'You need to be signed in to vote on prompts.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    if (isVoting) return;
+
+    try {
+      setIsVoting(true);
+      const wasVoted = hasVoted(prompt.id);
+      
+      // Optimistic update
+      setVoteCount(prev => wasVoted ? Math.max(0, prev - 1) : prev + 1);
+      
+      await toggleVote(prompt.id);
+      
+      // Refresh vote count from server
+      await loadVoteCount();
+    } catch (error) {
+      console.error('Error toggling vote:', error);
+      
+      // Revert optimistic update on error
+      const wasVoted = hasVoted(prompt.id);
+      setVoteCount(prev => wasVoted ? prev + 1 : Math.max(0, prev - 1));
+      
+      Alert.alert(
+        'Error',
+        error instanceof Error ? error.message : 'Failed to update vote. Please try again.'
+      );
+    } finally {
+      setIsVoting(false);
+    }
+  };
+
+  const handleCopyToClipboard = async () => {
+    try {
+      await Clipboard.setStringAsync(prompt.content);
+      Alert.alert('Copied!', 'Prompt content has been copied to your clipboard.');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to copy content to clipboard.');
     }
   };
 
@@ -167,6 +234,8 @@ export function PromptDetail({ prompt, onClose }: PromptDetailProps) {
     );
   };
 
+  const userHasVoted = hasVoted(prompt.id);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -189,9 +258,6 @@ export function PromptDetail({ prompt, onClose }: PromptDetailProps) {
           <View style={styles.metaBadge}>
             <Text style={styles.metaBadgeText}>{prompt.specialty}</Text>
           </View>
-          <View style={[styles.metaBadge, styles.difficultyBadge]}>
-            <Text style={styles.metaBadgeText}>{prompt.difficulty_level}</Text>
-          </View>
         </View>
 
         <Text style={styles.promptContent}>{prompt.content}</Text>
@@ -208,6 +274,44 @@ export function PromptDetail({ prompt, onClose }: PromptDetailProps) {
             </View>
           </View>
         )}
+
+        {/* Vote Section */}
+        <View style={styles.voteSection}>
+          <TouchableOpacity
+            style={[
+              styles.voteButton,
+              userHasVoted && styles.voteButtonActive,
+              isVoting && styles.voteButtonDisabled
+            ]}
+            onPress={handleVoteToggle}
+            disabled={isVoting}
+            activeOpacity={0.7}
+          >
+            <ThumbsUp 
+              size={20} 
+              color={userHasVoted ? "#FFFFFF" : "#7D3C98"}
+              fill={userHasVoted ? "#FFFFFF" : "none"}
+            />
+            <Text style={[
+              styles.voteButtonText,
+              userHasVoted && styles.voteButtonTextActive
+            ]}>
+              {isVoting ? 'Updating...' : `${voteCount} ${voteCount === 1 ? 'vote' : 'votes'}`}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Action Buttons */}
+        <View style={styles.actionSection}>
+          <TouchableOpacity
+            style={styles.actionButton}
+            onPress={handleCopyToClipboard}
+            activeOpacity={0.7}
+          >
+            <Copy size={18} color="#666666" />
+            <Text style={styles.actionButtonText}>Copy Content</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Hydration Reminder Button */}
         {isHydrationPrompt() && (
@@ -352,9 +456,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'capitalize',
   },
-  difficultyBadge: {
-    backgroundColor: '#F3E8FF',
-  },
   promptContent: {
     fontSize: 16,
     color: '#333333',
@@ -383,6 +484,58 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginRight: 8,
     marginBottom: 4,
+  },
+  voteSection: {
+    alignItems: 'center',
+    marginBottom: 24,
+    paddingVertical: 16,
+  },
+  voteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3E8FF',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 25,
+    borderWidth: 2,
+    borderColor: '#7D3C98',
+    gap: 8,
+  },
+  voteButtonActive: {
+    backgroundColor: '#7D3C98',
+    borderColor: '#7D3C98',
+  },
+  voteButtonDisabled: {
+    opacity: 0.6,
+  },
+  voteButtonText: {
+    fontSize: 16,
+    color: '#7D3C98',
+    fontWeight: '600',
+  },
+  voteButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  actionSection: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  actionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E5E5',
+    gap: 8,
+  },
+  actionButtonText: {
+    fontSize: 14,
+    color: '#666666',
+    fontWeight: '500',
   },
   reminderSection: {
     backgroundColor: '#F0FDFA',
