@@ -8,6 +8,8 @@ import {
   SafeAreaView,
   Switch,
   Alert,
+  Modal,
+  RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { 
@@ -22,58 +24,63 @@ import {
   TrendingUp,
   Clock,
   ChevronRight,
-  Award
+  Award,
+  ThumbsUp,
+  Edit3,
+  Plus
 } from 'lucide-react-native';
 import { useFavorites } from '@/hooks/useFavorites';
+import { useUser } from '@/hooks/useUser';
+import { useVoting } from '@/hooks/useVoting';
+import { fetchPromptsByUser, PromptWithUser } from '@/lib/fetchPrompts';
+import { Auth } from '@/components/Auth';
 
-// Mock data for demonstration
-const MOCK_USER = {
-  id: 'user-1',
-  name: 'Sarah Johnson',
-  email: 'sarah.johnson@hospital.com',
-  specialty: 'ICU Nurse',
-  experience: '8 years',
-  joinedDate: '2023-01-15',
-  avatar: null,
-};
-
-const MOCK_CONTRIBUTIONS = [
-  {
-    id: 'contrib-1',
-    title: 'Code Blue Response Protocol',
-    category: 'Code Blue Debrief',
-    votes: 24,
-    createdAt: '2024-01-15',
-    status: 'published',
-  },
-  {
-    id: 'contrib-2',
-    title: 'Post-Shift Mindfulness Guide',
-    category: 'Self-Care',
-    votes: 18,
-    createdAt: '2024-01-10',
-    status: 'published',
-  },
-  {
-    id: 'contrib-3',
-    title: 'ICU Handoff Checklist',
-    category: 'Shift Report Prep',
-    votes: 31,
-    createdAt: '2024-01-05',
-    status: 'under_review',
-  },
-];
-
-export default function Profile2Screen() {
+export default function ProfileScreen() {
   const router = useRouter();
+  const { user, profile, isLoading: userLoading, signOut } = useUser();
   const { favorites, loading: favoritesLoading } = useFavorites();
-  const [isAuthenticated, setIsAuthenticated] = useState(true); // Mock auth state
+  const { votes } = useVoting();
   const [isDarkMode, setIsDarkMode] = useState(false);
-  const [activeTab, setActiveTab] = useState('favorites'); // 'favorites', 'contributions', 'settings'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'favorites', 'contributions', 'votes', 'settings'
+  const [showAuth, setShowAuth] = useState(false);
+  const [userPrompts, setUserPrompts] = useState<PromptWithUser[]>([]);
+  const [loadingPrompts, setLoadingPrompts] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    if (user && activeTab === 'contributions') {
+      loadUserPrompts();
+    }
+  }, [user, activeTab]);
+
+  const loadUserPrompts = async () => {
+    if (!user) return;
+    
+    try {
+      setLoadingPrompts(true);
+      const prompts = await fetchPromptsByUser(user.id);
+      setUserPrompts(prompts);
+    } catch (error) {
+      console.error('Error loading user prompts:', error);
+    } finally {
+      setLoadingPrompts(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    if (activeTab === 'contributions') {
+      await loadUserPrompts();
+    }
+    setRefreshing(false);
+  };
 
   const handleSignIn = () => {
-    setIsAuthenticated(true);
-    Alert.alert('Success', 'You are now signed in!');
+    setShowAuth(true);
+  };
+
+  const handleAuthSuccess = () => {
+    setShowAuth(false);
   };
 
   const handlePromptPress = (promptId: string) => {
@@ -83,44 +90,95 @@ export default function Profile2Screen() {
     });
   };
 
-  const renderUnauthenticatedView = () => (
-    <View style={styles.unauthContainer}>
-      <View style={styles.unauthContent}>
-        <View style={styles.unauthIcon}>
-          <User size={48} color="#6366F1" />
+  const handleSignOut = async () => {
+    Alert.alert(
+      'Sign Out',
+      'Are you sure you want to sign out?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Sign Out', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await signOut();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to sign out. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  if (userLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading...</Text>
         </View>
-        
-        <Text style={styles.unauthTitle}>Join the Community</Text>
-        <Text style={styles.unauthSubtitle}>
-          Sign in to save your favorite prompts, track your contributions, and connect with fellow nurses.
-        </Text>
-        
-        <View style={styles.benefitsList}>
-          <View style={styles.benefitItem}>
-            <Heart size={20} color="#EF4444" />
-            <Text style={styles.benefitText}>Save favorite prompts</Text>
-          </View>
-          <View style={styles.benefitItem}>
-            <FileText size={20} color="#10B981" />
-            <Text style={styles.benefitText}>Track your contributions</Text>
-          </View>
-          <View style={styles.benefitItem}>
-            <Award size={20} color="#F59E0B" />
-            <Text style={styles.benefitText}>Build your reputation</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (!user) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.unauthContainer}>
+          <View style={styles.unauthContent}>
+            <View style={styles.unauthIcon}>
+              <User size={48} color="#6366F1" />
+            </View>
+            
+            <Text style={styles.unauthTitle}>Join the Community</Text>
+            <Text style={styles.unauthSubtitle}>
+              Sign in to save your favorite prompts, track your contributions, and connect with fellow nurses.
+            </Text>
+            
+            <View style={styles.benefitsList}>
+              <View style={styles.benefitItem}>
+                <Heart size={20} color="#EF4444" />
+                <Text style={styles.benefitText}>Save favorite prompts</Text>
+              </View>
+              <View style={styles.benefitItem}>
+                <FileText size={20} color="#10B981" />
+                <Text style={styles.benefitText}>Track your contributions</Text>
+              </View>
+              <View style={styles.benefitItem}>
+                <Award size={20} color="#F59E0B" />
+                <Text style={styles.benefitText}>Build your reputation</Text>
+              </View>
+              <View style={styles.benefitItem}>
+                <ThumbsUp size={20} color="#8B5CF6" />
+                <Text style={styles.benefitText}>Vote on prompts</Text>
+              </View>
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.signInButton}
+              onPress={handleSignIn}
+              activeOpacity={0.9}
+            >
+              <LogIn size={20} color="#FFFFFF" />
+              <Text style={styles.signInButtonText}>Sign In / Sign Up</Text>
+            </TouchableOpacity>
           </View>
         </View>
-        
-        <TouchableOpacity 
-          style={styles.signInButton}
-          onPress={handleSignIn}
-          activeOpacity={0.9}
+
+        {/* Auth Modal */}
+        <Modal
+          visible={showAuth}
+          animationType="slide"
+          presentationStyle="fullScreen"
         >
-          <LogIn size={20} color="#FFFFFF" />
-          <Text style={styles.signInButtonText}>Sign In / Sign Up</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+          <Auth
+            onAuthSuccess={handleAuthSuccess}
+            onCancel={() => setShowAuth(false)}
+          />
+        </Modal>
+      </SafeAreaView>
+    );
+  }
 
   const renderProfileHeader = () => (
     <View style={styles.profileHeader}>
@@ -128,12 +186,16 @@ export default function Profile2Screen() {
         <View style={styles.avatar}>
           <User size={32} color="#6366F1" />
         </View>
+        <TouchableOpacity style={styles.editProfileButton}>
+          <Edit3 size={16} color="#6366F1" />
+        </TouchableOpacity>
       </View>
       
       <View style={styles.profileInfo}>
-        <Text style={styles.profileName}>{MOCK_USER.name}</Text>
-        <Text style={styles.profileSpecialty}>{MOCK_USER.specialty}</Text>
-        <Text style={styles.profileExperience}>{MOCK_USER.experience} experience</Text>
+        <Text style={styles.profileName}>{profile?.full_name || 'Nurse'}</Text>
+        <Text style={styles.profileUsername}>@{profile?.username || 'username'}</Text>
+        <Text style={styles.profileSpecialty}>{profile?.specialty || 'General Practice'}</Text>
+        <Text style={styles.profileExperience}>{profile?.years_experience || 0} years experience</Text>
       </View>
       
       <View style={styles.profileStats}>
@@ -143,8 +205,13 @@ export default function Profile2Screen() {
         </View>
         <View style={styles.statDivider} />
         <View style={styles.statItem}>
-          <Text style={styles.statNumber}>{MOCK_CONTRIBUTIONS.length}</Text>
-          <Text style={styles.statLabel}>Contributions</Text>
+          <Text style={styles.statNumber}>{userPrompts.length}</Text>
+          <Text style={styles.statLabel}>Prompts</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statItem}>
+          <Text style={styles.statNumber}>{votes.length}</Text>
+          <Text style={styles.statLabel}>Votes</Text>
         </View>
       </View>
     </View>
@@ -153,10 +220,23 @@ export default function Profile2Screen() {
   const renderTabNavigation = () => (
     <View style={styles.tabNavigation}>
       <TouchableOpacity
+        style={[styles.tab, activeTab === 'overview' && styles.activeTab]}
+        onPress={() => setActiveTab('overview')}
+      >
+        <User size={18} color={activeTab === 'overview' ? '#6366F1' : '#6B7280'} />
+        <Text style={[
+          styles.tabText,
+          activeTab === 'overview' && styles.activeTabText
+        ]}>
+          Overview
+        </Text>
+      </TouchableOpacity>
+      
+      <TouchableOpacity
         style={[styles.tab, activeTab === 'favorites' && styles.activeTab]}
         onPress={() => setActiveTab('favorites')}
       >
-        <Heart size={20} color={activeTab === 'favorites' ? '#6366F1' : '#6B7280'} />
+        <Heart size={18} color={activeTab === 'favorites' ? '#6366F1' : '#6B7280'} />
         <Text style={[
           styles.tabText,
           activeTab === 'favorites' && styles.activeTabText
@@ -169,12 +249,12 @@ export default function Profile2Screen() {
         style={[styles.tab, activeTab === 'contributions' && styles.activeTab]}
         onPress={() => setActiveTab('contributions')}
       >
-        <FileText size={20} color={activeTab === 'contributions' ? '#6366F1' : '#6B7280'} />
+        <FileText size={18} color={activeTab === 'contributions' ? '#6366F1' : '#6B7280'} />
         <Text style={[
           styles.tabText,
           activeTab === 'contributions' && styles.activeTabText
         ]}>
-          Contributions
+          My Prompts
         </Text>
       </TouchableOpacity>
       
@@ -182,7 +262,7 @@ export default function Profile2Screen() {
         style={[styles.tab, activeTab === 'settings' && styles.activeTab]}
         onPress={() => setActiveTab('settings')}
       >
-        <Settings size={20} color={activeTab === 'settings' ? '#6366F1' : '#6B7280'} />
+        <Settings size={18} color={activeTab === 'settings' ? '#6366F1' : '#6B7280'} />
         <Text style={[
           styles.tabText,
           activeTab === 'settings' && styles.activeTabText
@@ -190,6 +270,74 @@ export default function Profile2Screen() {
           Settings
         </Text>
       </TouchableOpacity>
+    </View>
+  );
+
+  const renderOverview = () => (
+    <View style={styles.tabContent}>
+      <View style={styles.overviewSection}>
+        <Text style={styles.sectionTitle}>Recent Activity</Text>
+        
+        <View style={styles.activityCard}>
+          <View style={styles.activityItem}>
+            <Heart size={20} color="#EF4444" />
+            <View style={styles.activityText}>
+              <Text style={styles.activityTitle}>Favorites</Text>
+              <Text style={styles.activityDescription}>
+                You have {favorites.length} saved prompts
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => setActiveTab('favorites')}>
+              <ChevronRight size={20} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.activityItem}>
+            <FileText size={20} color="#10B981" />
+            <View style={styles.activityText}>
+              <Text style={styles.activityTitle}>Contributions</Text>
+              <Text style={styles.activityDescription}>
+                You've shared {userPrompts.length} prompts
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => setActiveTab('contributions')}>
+              <ChevronRight size={20} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.activityItem}>
+            <ThumbsUp size={20} color="#8B5CF6" />
+            <View style={styles.activityText}>
+              <Text style={styles.activityTitle}>Votes Cast</Text>
+              <Text style={styles.activityDescription}>
+                You've voted on {votes.length} prompts
+              </Text>
+            </View>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.overviewSection}>
+        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        
+        <View style={styles.quickActions}>
+          <TouchableOpacity 
+            style={styles.quickActionButton}
+            onPress={() => router.push('/(tabs)/submit')}
+          >
+            <Plus size={24} color="#6366F1" />
+            <Text style={styles.quickActionText}>Submit Prompt</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.quickActionButton}
+            onPress={() => router.push('/(tabs)/search')}
+          >
+            <TrendingUp size={24} color="#10B981" />
+            <Text style={styles.quickActionText}>Explore Prompts</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     </View>
   );
 
@@ -208,13 +356,18 @@ export default function Profile2Screen() {
           </Text>
           <TouchableOpacity 
             style={styles.exploreButton}
-            onPress={() => router.push('/(tabs)/search2')}
+            onPress={() => router.push('/(tabs)/search')}
           >
             <Text style={styles.exploreButtonText}>Explore Prompts</Text>
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false}>
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          }
+        >
           {favorites.map((prompt) => (
             <TouchableOpacity
               key={prompt.id}
@@ -258,67 +411,63 @@ export default function Profile2Screen() {
 
   const renderContributions = () => (
     <View style={styles.tabContent}>
-      {MOCK_CONTRIBUTIONS.length === 0 ? (
+      {loadingPrompts ? (
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading your prompts...</Text>
+        </View>
+      ) : userPrompts.length === 0 ? (
         <View style={styles.emptyState}>
           <FileText size={48} color="#D1D5DB" />
-          <Text style={styles.emptyTitle}>No contributions yet</Text>
+          <Text style={styles.emptyTitle}>No prompts yet</Text>
           <Text style={styles.emptyText}>
             Share your nursing expertise by submitting your first prompt
           </Text>
           <TouchableOpacity 
             style={styles.exploreButton}
-            onPress={() => router.push('/(tabs)/submit2')}
+            onPress={() => router.push('/(tabs)/submit')}
           >
             <Text style={styles.exploreButtonText}>Submit a Prompt</Text>
           </TouchableOpacity>
         </View>
       ) : (
-        <ScrollView showsVerticalScrollIndicator={false}>
-          {MOCK_CONTRIBUTIONS.map((contribution) => (
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          }
+        >
+          {userPrompts.map((prompt) => (
             <TouchableOpacity
-              key={contribution.id}
+              key={prompt.id}
               style={styles.promptCard}
-              onPress={() => handlePromptPress(contribution.id)}
+              onPress={() => handlePromptPress(prompt.id)}
               activeOpacity={0.9}
             >
               <View style={styles.promptCardHeader}>
                 <View style={styles.promptCategory}>
-                  <Text style={styles.promptCategoryText}>{contribution.category}</Text>
+                  <Text style={styles.promptCategoryText}>{prompt.category}</Text>
                 </View>
-                <View style={[
-                  styles.statusBadge,
-                  contribution.status === 'published' && styles.publishedBadge,
-                  contribution.status === 'under_review' && styles.reviewBadge,
-                ]}>
-                  <Text style={[
-                    styles.statusText,
-                    contribution.status === 'published' && styles.publishedText,
-                    contribution.status === 'under_review' && styles.reviewText,
-                  ]}>
-                    {contribution.status === 'published' ? 'Published' : 'Under Review'}
-                  </Text>
+                <View style={styles.promptVotes}>
+                  <ThumbsUp size={14} color="#6366F1" />
+                  <Text style={styles.votesText}>{prompt.votes_count || prompt.votes || 0}</Text>
                 </View>
               </View>
               
               <Text style={styles.promptTitle} numberOfLines={2}>
-                {contribution.title}
+                {prompt.title}
               </Text>
               
-              <View style={styles.contributionStats}>
-                <View style={styles.contributionStat}>
-                  <TrendingUp size={14} color="#EF4444" />
-                  <Text style={styles.contributionStatText}>{contribution.votes} votes</Text>
-                </View>
-                <View style={styles.contributionStat}>
-                  <Clock size={14} color="#6B7280" />
-                  <Text style={styles.contributionStatText}>
-                    {new Date(contribution.createdAt).toLocaleDateString()}
-                  </Text>
-                </View>
-              </View>
+              <Text style={styles.promptExcerpt} numberOfLines={2}>
+                {prompt.content.substring(0, 120)}...
+              </Text>
               
               <View style={styles.promptFooter}>
-                <View />
+                <View style={styles.promptMeta}>
+                  <Clock size={12} color="#6B7280" />
+                  <Text style={styles.promptDate}>
+                    Created {new Date(prompt.created_at).toLocaleDateString()}
+                  </Text>
+                </View>
                 <ChevronRight size={16} color="#6B7280" />
               </View>
             </TouchableOpacity>
@@ -390,17 +539,24 @@ export default function Profile2Screen() {
           </View>
           <ChevronRight size={16} color="#6B7280" />
         </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.settingItem} onPress={handleSignOut}>
+          <View style={styles.settingInfo}>
+            <View style={[styles.settingIcon, styles.signOutIcon]}>
+              <LogIn size={20} color="#EF4444" />
+            </View>
+            <View style={styles.settingText}>
+              <Text style={[styles.settingTitle, styles.signOutText]}>Sign Out</Text>
+              <Text style={styles.settingDescription}>
+                Sign out of your account
+              </Text>
+            </View>
+          </View>
+          <ChevronRight size={16} color="#6B7280" />
+        </TouchableOpacity>
       </View>
     </View>
   );
-
-  if (!isAuthenticated) {
-    return (
-      <SafeAreaView style={styles.container}>
-        {renderUnauthenticatedView()}
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -408,6 +564,7 @@ export default function Profile2Screen() {
         {renderProfileHeader()}
         {renderTabNavigation()}
         
+        {activeTab === 'overview' && renderOverview()}
         {activeTab === 'favorites' && renderFavorites()}
         {activeTab === 'contributions' && renderContributions()}
         {activeTab === 'settings' && renderSettings()}
@@ -423,6 +580,16 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 64,
+  },
+  loadingText: {
+    fontSize: 16,
+    color: '#6B7280',
   },
   // Unauthenticated View
   unauthContainer: {
@@ -500,6 +667,7 @@ const styles = StyleSheet.create({
   avatarContainer: {
     alignItems: 'center',
     marginBottom: 16,
+    position: 'relative',
   },
   avatar: {
     width: 80,
@@ -508,6 +676,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#F0F4FF',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  editProfileButton: {
+    position: 'absolute',
+    bottom: 0,
+    right: '40%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 8,
+    borderWidth: 2,
+    borderColor: '#E5E7EB',
   },
   profileInfo: {
     alignItems: 'center',
@@ -519,15 +697,21 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     marginBottom: 4,
   },
-  profileSpecialty: {
+  profileUsername: {
     fontSize: 16,
     color: '#6366F1',
     fontWeight: '600',
+    marginBottom: 4,
+  },
+  profileSpecialty: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '500',
     marginBottom: 2,
   },
   profileExperience: {
     fontSize: 14,
-    color: '#6B7280',
+    color: '#9CA3AF',
   },
   profileStats: {
     flexDirection: 'row',
@@ -567,14 +751,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 16,
-    gap: 8,
+    gap: 6,
   },
   activeTab: {
     borderBottomWidth: 2,
     borderBottomColor: '#6366F1',
   },
   tabText: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#6B7280',
     fontWeight: '500',
   },
@@ -587,16 +771,70 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: 64,
+  // Overview
+  overviewSection: {
+    marginBottom: 24,
   },
-  loadingText: {
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 16,
+  },
+  activityCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  activityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  activityText: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  activityTitle: {
     fontSize: 16,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 2,
+  },
+  activityDescription: {
+    fontSize: 14,
     color: '#6B7280',
   },
+  quickActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  quickActionButton: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  quickActionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginTop: 8,
+  },
+  // Empty States
   emptyState: {
     flex: 1,
     justifyContent: 'center',
@@ -696,44 +934,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
   },
-  // Contributions
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  publishedBadge: {
-    backgroundColor: '#DCFCE7',
-  },
-  reviewBadge: {
-    backgroundColor: '#FEF3C7',
-  },
-  statusText: {
-    fontSize: 10,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-  },
-  publishedText: {
-    color: '#166534',
-  },
-  reviewText: {
-    color: '#92400E',
-  },
-  contributionStats: {
-    flexDirection: 'row',
-    gap: 16,
-    marginBottom: 12,
-  },
-  contributionStat: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  contributionStatText: {
-    fontSize: 12,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
   // Settings
   settingsSection: {
     marginBottom: 32,
@@ -773,6 +973,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 12,
   },
+  signOutIcon: {
+    backgroundColor: '#FEF2F2',
+  },
   settingText: {
     flex: 1,
   },
@@ -781,6 +984,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1F2937',
     marginBottom: 2,
+  },
+  signOutText: {
+    color: '#EF4444',
   },
   settingDescription: {
     fontSize: 14,
