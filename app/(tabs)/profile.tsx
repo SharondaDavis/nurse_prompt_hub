@@ -13,7 +13,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { User, Heart, FileText, Settings, Moon, Sun, LogIn, Bookmark, TrendingUp, Clock, ChevronRight, Award, ThumbsUp, CreditCard as Edit3, Plus, LogOut } from 'lucide-react-native';
+import { User, Heart, FileText, Settings, Moon, Sun, LogOut, Bookmark, TrendingUp, Clock, ChevronRight, Award, ThumbsUp, CreditCard as Edit3, Plus } from 'lucide-react-native';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useUser } from '@/hooks/useUser';
 import { useVoting } from '@/hooks/useVoting';
@@ -95,8 +95,7 @@ export default function ProfileScreen() {
             try {
               setIsSigningOut(true);
               await supabase.auth.signOut();
-              // The useUser hook will automatically handle the state update
-              // No need to manually redirect as the component will re-render
+              router.replace('/login');
             } catch (error) {
               Alert.alert('Error', 'Failed to sign out. Please try again.');
             } finally {
@@ -159,7 +158,7 @@ export default function ProfileScreen() {
               onPress={handleSignIn}
               activeOpacity={0.9}
             >
-              <LogIn size={20} color="#FFFFFF" />
+              <LogOut size={20} color="#FFFFFF" />
               <Text style={styles.signInButtonText}>Sign In / Sign Up</Text>
             </TouchableOpacity>
           </View>
