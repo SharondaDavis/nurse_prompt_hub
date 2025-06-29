@@ -4,11 +4,10 @@
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
-    +  "vercel-build": "npm run build:web",
-   "build:web": "expo export:web --output-dir web-build",
-   "dev": "EXPO_NO_TELEMETRY=1 expo start","start": "npm run dev",
+    "vercel-build": "npm run build:web",
+    "build:web": "expo export:web --public-url / --output-dir web-build",
     "dev": "EXPO_NO_TELEMETRY=1 npx expo start",
-    "build:web": "expo export:web --public-url /",
+    "start": "npm run dev",
     "lint": "expo lint"
   },
   "dependencies": {
