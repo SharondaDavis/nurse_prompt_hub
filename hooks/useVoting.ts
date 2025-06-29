@@ -44,7 +44,10 @@ export function useVoting() {
         .eq('user_id', user.id);
 
       if (fetchError) {
-        throw fetchError;
+        console.warn('Error loading user votes:', fetchError);
+        // Don't throw error, just use empty array
+        setVotes([]);
+        return;
       }
 
       const userVotes = data?.map(vote => vote.prompt_id) || [];
@@ -52,6 +55,7 @@ export function useVoting() {
     } catch (err) {
       console.error('Error loading user votes:', err);
       setError(err instanceof Error ? err.message : 'Failed to load votes');
+      setVotes([]); // Fallback to empty array
     } finally {
       setLoading(false);
     }
@@ -71,7 +75,8 @@ export function useVoting() {
         .rpc('get_prompt_vote_count', { prompt_uuid: promptId });
 
       if (error) {
-        throw error;
+        console.warn('Error getting vote count:', error);
+        return 0;
       }
 
       const count = data || 0;
@@ -159,6 +164,7 @@ export function useVoting() {
         .eq('prompt_id', promptId);
 
       if (deleteError) {
+        console.warn('Error removing vote:', deleteError);
         throw deleteError;
       }
 

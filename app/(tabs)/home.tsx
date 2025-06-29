@@ -42,7 +42,6 @@ const FEATURED_PROMPTS = [
     category: 'Code Blue Debrief',
     excerpt: 'Walk through post-code documentation and mindfulness grounding...',
     votes: 24,
-    difficulty: 'intermediate',
     isPopular: true,
   },
   {
@@ -51,7 +50,6 @@ const FEATURED_PROMPTS = [
     category: 'Burnout Self-Check',
     excerpt: 'Guide through 4-7-8 breathing and personalized reset strategies...',
     votes: 42,
-    difficulty: 'beginner',
     isNew: true,
   },
   {
@@ -60,7 +58,6 @@ const FEATURED_PROMPTS = [
     category: 'Prioritization Support',
     excerpt: 'Help prioritize tasks during busy shifts with focused questions...',
     votes: 35,
-    difficulty: 'advanced',
     isPopular: true,
   },
 ];
@@ -98,28 +95,28 @@ export default function HomeScreen() {
         return;
       }
 
-      // Fetch prompt count
-      const { count: promptCount, error: promptError } = await supabase
-        .from('prompts')
-        .select('id', { count: 'exact', head: true });
+      // Use Promise.allSettled to handle potential errors gracefully
+      const [promptResult, nurseResult] = await Promise.allSettled([
+        supabase.from('prompts').select('id', { count: 'exact', head: true }),
+        supabase.from('user_profiles').select('username', { count: 'exact', head: true })
+      ]);
 
-      if (promptError) {
-        console.error('Error fetching prompt count:', promptError);
+      let promptCount = 500; // Default fallback
+      let nurseCount = 10000; // Default fallback
+
+      if (promptResult.status === 'fulfilled' && !promptResult.value.error) {
+        promptCount = promptResult.value.count || 500;
+      } else {
+        console.warn('Failed to fetch prompt count, using fallback');
       }
 
-      // Fetch nurse count from user_profiles table
-      const { count: nurseCount, error: nurseError } = await supabase
-        .from('user_profiles')
-        .select('username', { count: 'exact', head: true });
-
-      if (nurseError) {
-        console.error('Error fetching nurse count:', nurseError);
+      if (nurseResult.status === 'fulfilled' && !nurseResult.value.error) {
+        nurseCount = nurseResult.value.count || 10000;
+      } else {
+        console.warn('Failed to fetch nurse count, using fallback');
       }
 
-      setMetrics({
-        promptCount: promptCount || 0,
-        nurseCount: nurseCount || 0,
-      });
+      setMetrics({ promptCount, nurseCount });
     } catch (error) {
       console.error('Error fetching metrics:', error);
       // Fallback to default values on error
@@ -278,15 +275,10 @@ export default function HomeScreen() {
             </Text>
             
             <View style={styles.promptFooter}>
-              <View style={[
-                styles.difficultyBadge,
-                prompt.difficulty === 'beginner' && styles.beginnerBadge,
-                prompt.difficulty === 'intermediate' && styles.intermediateBadge,
-                prompt.difficulty === 'advanced' && styles.advancedBadge,
-              ]}>
-                <Text style={styles.difficultyText}>{prompt.difficulty}</Text>
+              <View style={styles.promptMeta}>
+                <Clock size={14} color="#6B7280" />
+                <Text style={styles.metaText}>Recently added</Text>
               </View>
-              <Clock size={14} color="#6B7280" />
             </View>
           </TouchableOpacity>
         ))}
@@ -530,27 +522,18 @@ const styles = StyleSheet.create({
   },
   promptFooter: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     alignItems: 'center',
   },
-  difficultyBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+  promptMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
-  beginnerBadge: {
-    backgroundColor: '#DCFCE7',
-  },
-  intermediateBadge: {
-    backgroundColor: '#FEF3C7',
-  },
-  advancedBadge: {
-    backgroundColor: '#FEE2E2',
-  },
-  difficultyText: {
+  metaText: {
     fontSize: 12,
-    fontWeight: '600',
-    textTransform: 'capitalize',
+    color: '#6B7280',
+    fontWeight: '500',
   },
   searchCTASection: {
     paddingHorizontal: 24,

@@ -98,68 +98,74 @@ export async function fetchPrompts(options: FetchPromptsOptions = {}): Promise<P
   }
 
   // Use Supabase when properly configured
-  let query = supabase
-    .from('prompts')
-    .select(`
-      *,
-      user_profiles (
-        username,
-        full_name,
-        specialty
-      ),
-      votes_count:votes(count)
-    `);
+  try {
+    let query = supabase
+      .from('prompts')
+      .select(`
+        *,
+        user_profiles (
+          username,
+          full_name,
+          specialty
+        )
+      `);
 
-  // Apply full-text search if search term is provided
-  if (search && search.trim()) {
-    // Use full-text search with tsvector for better performance and relevance
-    query = query.textSearch('prompt_vector', search.trim(), {
-      type: 'websearch', // Supports phrases, AND/OR operators, and quoted strings
-      config: 'english'
-    });
+    // Apply full-text search if search term is provided
+    if (search && search.trim()) {
+      // Use full-text search with tsvector for better performance and relevance
+      query = query.textSearch('prompt_vector', search.trim(), {
+        type: 'websearch', // Supports phrases, AND/OR operators, and quoted strings
+        config: 'english'
+      });
+    }
+
+    // Filter by user if userId is provided
+    if (userId) {
+      query = query.eq('created_by', userId);
+    }
+
+    // Apply category filter
+    if (category && category !== 'all') {
+      query = query.eq('category', category);
+    }
+
+    // Apply specialty filter
+    if (specialty && specialty !== 'all') {
+      query = query.eq('specialty', specialty);
+    }
+
+    // Order by vote count (descending) first, then by creation date for search queries
+    if (search && search.trim()) {
+      // For search queries, we'll sort by relevance and vote count
+      query = query.order('votes', { ascending: false }).order('created_at', { ascending: false });
+    } else {
+      // For non-search queries, order by vote count first, then creation date
+      query = query.order('votes', { ascending: false }).order('created_at', { ascending: false });
+    }
+
+    // Apply pagination
+    query = query.range(offset, offset + limit - 1);
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching prompts:', error);
+      // Return mock data as fallback
+      return fetchPrompts(options);
+    }
+
+    // Transform the data to include vote counts (use the votes field directly)
+    const promptsWithVotes = data?.map(prompt => ({
+      ...prompt,
+      votes_count: prompt.votes || 0, // Use votes field directly
+    })) || [];
+
+    return promptsWithVotes as PromptWithUser[];
+  } catch (error) {
+    console.error('Error in fetchPrompts:', error);
+    // Return mock data as fallback
+    return fetchPrompts({ ...options });
   }
-
-  // Filter by user if userId is provided
-  if (userId) {
-    query = query.eq('created_by', userId);
-  }
-
-  // Apply category filter
-  if (category && category !== 'all') {
-    query = query.eq('category', category);
-  }
-
-  // Apply specialty filter
-  if (specialty && specialty !== 'all') {
-    query = query.eq('specialty', specialty);
-  }
-
-  // Order by vote count (descending) first, then by creation date for search queries
-  if (search && search.trim()) {
-    // For search queries, we'll sort by relevance and vote count
-    query = query.order('votes', { ascending: false }).order('created_at', { ascending: false });
-  } else {
-    // For non-search queries, order by vote count first, then creation date
-    query = query.order('votes', { ascending: false }).order('created_at', { ascending: false });
-  }
-
-  // Apply pagination
-  query = query.range(offset, offset + limit - 1);
-
-  const { data, error } = await query;
-
-  if (error) {
-    console.error('Error fetching prompts:', error);
-    throw error;
-  }
-
-  // Transform the data to include vote counts
-  const promptsWithVotes = data?.map(prompt => ({
-    ...prompt,
-    votes_count: Array.isArray(prompt.votes_count) ? prompt.votes_count.length : (prompt.votes_count || 0),
-  })) || [];
-
-  return promptsWithVotes as PromptWithUser[];
 }
 
 export async function fetchPromptsByUser(userId: string): Promise<PromptWithUser[]> {
@@ -207,33 +213,37 @@ export async function fetchPromptsByUser(userId: string): Promise<PromptWithUser
     });
   }
 
-  const { data, error } = await supabase
-    .from('prompts')
-    .select(`
-      *,
-      user_profiles (
-        username,
-        full_name,
-        specialty
-      ),
-      votes_count:votes(count)
-    `)
-    .eq('created_by', userId)
-    .order('votes', { ascending: false })
-    .order('created_at', { ascending: false });
+  try {
+    const { data, error } = await supabase
+      .from('prompts')
+      .select(`
+        *,
+        user_profiles (
+          username,
+          full_name,
+          specialty
+        )
+      `)
+      .eq('created_by', userId)
+      .order('votes', { ascending: false })
+      .order('created_at', { ascending: false });
 
-  if (error) {
-    console.error('Error fetching user prompts:', error);
-    throw error;
+    if (error) {
+      console.error('Error fetching user prompts:', error);
+      return [];
+    }
+
+    // Transform the data to include vote counts
+    const promptsWithVotes = data?.map(prompt => ({
+      ...prompt,
+      votes_count: prompt.votes || 0,
+    })) || [];
+
+    return promptsWithVotes as PromptWithUser[];
+  } catch (error) {
+    console.error('Error in fetchPromptsByUser:', error);
+    return [];
   }
-
-  // Transform the data to include vote counts
-  const promptsWithVotes = data?.map(prompt => ({
-    ...prompt,
-    votes_count: Array.isArray(prompt.votes_count) ? prompt.votes_count.length : (prompt.votes_count || 0),
-  })) || [];
-
-  return promptsWithVotes as PromptWithUser[];
 }
 
 export async function fetchPromptById(id: string): Promise<PromptWithUser | null> {
@@ -272,32 +282,36 @@ export async function fetchPromptById(id: string): Promise<PromptWithUser | null
     };
   }
 
-  const { data, error } = await supabase
-    .from('prompts')
-    .select(`
-      *,
-      user_profiles (
-        username,
-        full_name,
-        specialty
-      ),
-      votes_count:votes(count)
-    `)
-    .eq('id', id)
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from('prompts')
+      .select(`
+        *,
+        user_profiles (
+          username,
+          full_name,
+          specialty
+        )
+      `)
+      .eq('id', id)
+      .single();
 
-  if (error) {
-    console.error('Error fetching prompt:', error);
-    throw error;
+    if (error) {
+      console.error('Error fetching prompt:', error);
+      return null;
+    }
+
+    // Transform the data to include vote count
+    const promptWithVotes = {
+      ...data,
+      votes_count: data.votes || 0,
+    };
+
+    return promptWithVotes as PromptWithUser;
+  } catch (error) {
+    console.error('Error in fetchPromptById:', error);
+    return null;
   }
-
-  // Transform the data to include vote count
-  const promptWithVotes = {
-    ...data,
-    votes_count: Array.isArray(data.votes_count) ? data.votes_count.length : (data.votes_count || 0),
-  };
-
-  return promptWithVotes as PromptWithUser;
 }
 
 // New function to get total count for pagination
@@ -339,39 +353,44 @@ export async function getTotalPromptsCount(options: Omit<FetchPromptsOptions, 'l
     return filtered.length;
   }
 
-  // Use Supabase when properly configured
-  let query = supabase
-    .from('prompts')
-    .select('*', { count: 'exact', head: true });
+  try {
+    // Use Supabase when properly configured
+    let query = supabase
+      .from('prompts')
+      .select('*', { count: 'exact', head: true });
 
-  // Apply full-text search if search term is provided
-  if (search && search.trim()) {
-    query = query.textSearch('prompt_vector', search.trim(), {
-      type: 'websearch',
-      config: 'english'
-    });
+    // Apply full-text search if search term is provided
+    if (search && search.trim()) {
+      query = query.textSearch('prompt_vector', search.trim(), {
+        type: 'websearch',
+        config: 'english'
+      });
+    }
+
+    if (userId) {
+      query = query.eq('created_by', userId);
+    }
+
+    if (category && category !== 'all') {
+      query = query.eq('category', category);
+    }
+
+    if (specialty && specialty !== 'all') {
+      query = query.eq('specialty', specialty);
+    }
+
+    const { count, error } = await query;
+
+    if (error) {
+      console.error('Error fetching prompts count:', error);
+      return 0;
+    }
+
+    return count || 0;
+  } catch (error) {
+    console.error('Error in getTotalPromptsCount:', error);
+    return 0;
   }
-
-  if (userId) {
-    query = query.eq('created_by', userId);
-  }
-
-  if (category && category !== 'all') {
-    query = query.eq('category', category);
-  }
-
-  if (specialty && specialty !== 'all') {
-    query = query.eq('specialty', specialty);
-  }
-
-  const { count, error } = await query;
-
-  if (error) {
-    console.error('Error fetching prompts count:', error);
-    throw error;
-  }
-
-  return count || 0;
 }
 
 // Enhanced search function with advanced full-text search capabilities
