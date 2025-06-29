@@ -34,7 +34,7 @@ const CATEGORIES = [
 
 const FEATURED_PROMPTS = [
   {
-    id: '1',
+    id: '550e8400-e29b-41d4-a716-446655440001',
     title: 'Code Blue Debrief Assistant',
     category: 'Code Blue Debrief',
     excerpt: 'Walk through post-code documentation and mindfulness grounding...',
@@ -42,7 +42,7 @@ const FEATURED_PROMPTS = [
     isPopular: true,
   },
   {
-    id: '2',
+    id: '550e8400-e29b-41d4-a716-446655440002',
     title: 'Post-Shift Reset Coach',
     category: 'Burnout Self-Check',
     excerpt: 'Guide through 4-7-8 breathing and personalized reset strategies...',
@@ -50,7 +50,7 @@ const FEATURED_PROMPTS = [
     isNew: true,
   },
   {
-    id: '3',
+    id: '550e8400-e29b-41d4-a716-446655440004',
     title: 'Clinical Decision Partner',
     category: 'Prioritization Support',
     excerpt: 'Help prioritize tasks during busy shifts with focused questions...',

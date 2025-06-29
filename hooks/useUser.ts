@@ -8,7 +8,7 @@ type UserProfile = Database['public']['Tables']['user_profiles']['Row'];
 
 // Mock user for demo when Supabase is not configured
 const mockUser = {
-  id: 'demo-user',
+  id: '550e8400-e29b-41d4-a716-446655440000',
   email: 'demo@nursehub.com',
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
@@ -16,7 +16,7 @@ const mockUser = {
 } as User;
 
 const mockProfile: UserProfile = {
-  id: 'demo-user',
+  id: '550e8400-e29b-41d4-a716-446655440000',
   username: 'demo_nurse_rn',
   full_name: 'Demo Nurse',
   specialty: 'General Practice',

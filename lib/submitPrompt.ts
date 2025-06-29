@@ -25,9 +25,9 @@ export async function submitPrompt(data: SubmitPromptData) {
   if (!isSupabaseConfigured) {
     // Mock submission for demo purposes
     const newPrompt = {
-      id: Date.now().toString(),
+      id: `550e8400-e29b-41d4-a716-${Date.now().toString().padStart(12, '0')}`,
       ...data,
-      created_by: data.is_anonymous ? null : 'demo-user', // Set to null if anonymous
+      created_by: data.is_anonymous ? null : '550e8400-e29b-41d4-a716-446655440000', // Set to null if anonymous
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
       votes: 0,
