@@ -1,10 +1,11 @@
+// babel.config.js
 module.exports = function(api) {
   api.cache(true);
   return {
     presets: ['babel-preset-expo'],
-    plugins: 
-       'expo-router/babel',       // ← keep this in!
+    plugins: [
+      'expo-router/babel',           // this must be first
       'react-native-reanimated/plugin' // if you’re using Reanimated
-    
+    ].filter(Boolean),
   };
 };
