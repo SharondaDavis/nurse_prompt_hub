@@ -72,10 +72,7 @@ export default function HomeScreen() {
   };
 
   const handlePromptPress = (promptId: string) => {
-    router.push({
-      pathname: '/prompt-detail',
-      params: { id: promptId }
-    });
+    router.push(`/prompt-detail/${promptId}`);
   };
 
   const handleSearchPress = () => {
