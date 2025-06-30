@@ -11,6 +11,7 @@ import {
   Modal,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { 
@@ -67,10 +68,13 @@ export default function PromptDetailScreen() {
   const loadPrompt = async () => {
     try {
       setLoading(true);
+      console.log("Loading prompt with ID:", id);
       const promptData = await fetchPromptById(id as string);
       if (promptData) {
+        console.log("Prompt loaded successfully:", promptData.title);
         setPrompt(promptData);
       } else {
+        console.error("Prompt not found for ID:", id);
         Alert.alert('Error', 'Prompt not found');
         router.back();
       }
@@ -256,6 +260,7 @@ export default function PromptDetailScreen() {
           <Text style={styles.headerTitle}>Loading...</Text>
         </View>
         <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#6366F1" />
           <Text style={styles.loadingText}>Loading prompt...</Text>
         </View>
       </SafeAreaView>
@@ -305,9 +310,11 @@ export default function PromptDetailScreen() {
             <View style={styles.metaBadge}>
               <Text style={styles.metaBadgeText}>{prompt.category}</Text>
             </View>
-            <View style={styles.metaBadge}>
-              <Text style={styles.metaBadgeText}>{prompt.specialty}</Text>
-            </View>
+            {prompt.specialty && (
+              <View style={styles.metaBadge}>
+                <Text style={styles.metaBadgeText}>{prompt.specialty}</Text>
+              </View>
+            )}
           </View>
 
           <Text style={styles.promptContent}>{prompt.content}</Text>
@@ -468,6 +475,7 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: 16,
     color: '#6B7280',
+    marginTop: 16,
   },
   content: {
     flex: 1,

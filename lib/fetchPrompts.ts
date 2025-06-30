@@ -43,7 +43,16 @@ export async function fetchPrompts(options: FetchPromptsOptions = {}): Promise<P
     }
 
     if (category && category !== 'all') {
-      filtered = filtered.filter(prompt => prompt.category === category);
+      filtered = filtered.filter(prompt => {
+        // Handle both short category IDs and full category names
+        const promptCategory = prompt.category.toLowerCase();
+        const searchCategory = category.toLowerCase();
+        
+        // Check if the category matches exactly or if it's a substring
+        return promptCategory === searchCategory || 
+               promptCategory.includes(searchCategory) ||
+               searchCategory.includes(promptCategory);
+      });
     }
 
     if (specialty && specialty !== 'all') {
@@ -126,7 +135,9 @@ export async function fetchPrompts(options: FetchPromptsOptions = {}): Promise<P
 
     // Apply category filter
     if (category && category !== 'all') {
-      query = query.eq('category', category);
+      // Handle both short category IDs and full category names
+      // Use ilike for case-insensitive matching
+      query = query.ilike('category', `%${category}%`);
     }
 
     // Apply specialty filter
@@ -334,7 +345,16 @@ export async function getTotalPromptsCount(options: Omit<FetchPromptsOptions, 'l
     }
 
     if (category && category !== 'all') {
-      filtered = filtered.filter(prompt => prompt.category === category);
+      filtered = filtered.filter(prompt => {
+        // Handle both short category IDs and full category names
+        const promptCategory = prompt.category.toLowerCase();
+        const searchCategory = category.toLowerCase();
+        
+        // Check if the category matches exactly or if it's a substring
+        return promptCategory === searchCategory || 
+               promptCategory.includes(searchCategory) ||
+               searchCategory.includes(promptCategory);
+      });
     }
 
     if (specialty && specialty !== 'all') {
@@ -372,7 +392,8 @@ export async function getTotalPromptsCount(options: Omit<FetchPromptsOptions, 'l
     }
 
     if (category && category !== 'all') {
-      query = query.eq('category', category);
+      // Use ilike for case-insensitive matching
+      query = query.ilike('category', `%${category}%`);
     }
 
     if (specialty && specialty !== 'all') {

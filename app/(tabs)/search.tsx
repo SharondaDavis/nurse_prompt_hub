@@ -32,7 +32,7 @@ export default function SearchScreen() {
   const params = useLocalSearchParams();
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all'); // disables category filtering
+  const [selectedCategory, setSelectedCategory] = useState('all'); // disables category filtering by default
  
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
   const [prompts, setPrompts] = useState<PromptWithUser[]>([]);
