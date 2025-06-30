@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   SafeAreaView,
   Dimensions,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { 
@@ -27,12 +28,15 @@ const { width: screenWidth } = Dimensions.get('window');
 
 const CATEGORIES = [
   { id: 'all', label: 'All Categories' },
-  { id: 'Code Blue Debrief', label: 'Code Blue Debrief' },
-  { id: 'Burnout Self-Check', label: 'Burnout Self-Check' },
-  { id: 'Shift Report Prep', label: 'Shift Report Prep' },
-  { id: 'Prioritization Support', label: 'Prioritization Support' },
-  { id: 'Care Plan Helper', label: 'Care Plan Helper' },
+  { id: 'Code Blue Debrief', label: 'Code Blue' },
+  { id: 'Burnout Self-Check', label: 'Burnout' },
+  { id: 'Shift Report Prep', label: 'Reports' },
+  { id: 'Prioritization Support', label: 'Priority' },
+  { id: 'Care Plan Helper', label: 'Care Plans' },
   { id: 'Self-Care', label: 'Self-Care' },
+  { id: 'Medication Safety', label: 'Medication' },
+  { id: 'Patient Education', label: 'Education' },
+  { id: 'Emergency Response', label: 'Emergency' },
 ];
 
 export default function SearchScreen() {
@@ -46,8 +50,16 @@ export default function SearchScreen() {
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
+  useEffect(() => {
+    // If category was passed as a param, perform search with that category
+    if (params.category && params.category !== 'all') {
+      setSelectedCategory(params.category as string);
+      handleCategorySearch(params.category as string);
+    }
+  }, [params.category]);
+
   const handleSearch = async () => {
-    if (!searchTerm.trim()) return;
+    if (!searchTerm.trim() && selectedCategory === 'all') return;
 
     setLoading(true);
     setHasSearched(true);
@@ -71,6 +83,36 @@ export default function SearchScreen() {
     handleSearch();
   };
 
+  const handleCategorySearch = (categoryId: string) => {
+    setSelectedCategory(categoryId);
+    setSearchTerm(categoryId === 'all' ? '' : categoryId);
+    
+    // If it's not "all", perform search with the category
+    if (categoryId !== 'all') {
+      setLoading(true);
+      setHasSearched(true);
+      
+      fetchPrompts({
+        category: categoryId,
+        limit: 50,
+      })
+        .then(results => {
+          setPrompts(results);
+        })
+        .catch(error => {
+          console.error('Category search error:', error);
+          setPrompts([]);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    } else {
+      // Reset search if "all" is selected
+      setHasSearched(false);
+      setPrompts([]);
+    }
+  };
+
   const handlePromptPress = (promptId: string) => {
     router.push({
       pathname: '/prompt-detail',
@@ -82,6 +124,7 @@ export default function SearchScreen() {
     setSearchTerm('');
     setPrompts([]);
     setHasSearched(false);
+    setSelectedCategory('all');
   };
 
   const getSelectedCategoryLabel = () => {
@@ -122,14 +165,14 @@ export default function SearchScreen() {
       <TouchableOpacity
         style={[
           styles.searchButton,
-          !searchTerm.trim() && styles.searchButtonDisabled
+          (!searchTerm.trim() && selectedCategory === 'all') && styles.searchButtonDisabled
         ]}
         onPress={handleSearchSubmit}
-        disabled={!searchTerm.trim()}
+        disabled={!searchTerm.trim() && selectedCategory === 'all'}
       >
         <Text style={[
           styles.searchButtonText,
-          !searchTerm.trim() && styles.searchButtonTextDisabled
+          (!searchTerm.trim() && selectedCategory === 'all') && styles.searchButtonTextDisabled
         ]}>
           Search
         </Text>
@@ -176,6 +219,34 @@ export default function SearchScreen() {
           ))}
         </View>
       )}
+    </View>
+  );
+
+  const renderCategoryChips = () => (
+    <View style={styles.categoryChipsContainer}>
+      <ScrollView 
+        horizontal 
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.categoryChipsScrollContent}
+      >
+        {CATEGORIES.map((category) => (
+          <TouchableOpacity
+            key={category.id}
+            style={[
+              styles.categoryChip,
+              selectedCategory === category.id && styles.selectedCategoryChip
+            ]}
+            onPress={() => handleCategorySearch(category.id)}
+          >
+            <Text style={[
+              styles.categoryChipText,
+              selectedCategory === category.id && styles.selectedCategoryChipText
+            ]}>
+              {category.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
     </View>
   );
 
@@ -281,7 +352,8 @@ export default function SearchScreen() {
     return (
       <View style={styles.resultsContainer}>
         <Text style={styles.resultsCount}>
-          {prompts.length} prompt{prompts.length !== 1 ? 's' : ''} found for "{searchTerm}"
+          {prompts.length} prompt{prompts.length !== 1 ? 's' : ''} found
+          {searchTerm ? ` for "${searchTerm}"` : selectedCategory !== 'all' ? ` in ${selectedCategory}` : ''}
         </Text>
         <FlatList
           data={prompts}
@@ -299,6 +371,10 @@ export default function SearchScreen() {
     <SafeAreaView style={styles.container}>
       {renderSearchHeader()}
       {renderCategoryFilter()}
+      
+      {/* Show category chips only when no search has been performed */}
+      {!hasSearched && renderCategoryChips()}
+      
       {renderContent()}
     </SafeAreaView>
   );
@@ -416,6 +492,38 @@ const styles = StyleSheet.create({
   selectedCategoryOptionText: {
     color: '#6366F1',
     fontWeight: '600',
+  },
+  // Category chips styles
+  categoryChipsContainer: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  categoryChipsScrollContent: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  categoryChip: {
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  selectedCategoryChip: {
+    backgroundColor: '#6366F1',
+    borderColor: '#4F46E5',
+  },
+  categoryChipText: {
+    fontSize: 14,
+    color: '#4B5563',
+    fontWeight: '600',
+  },
+  selectedCategoryChipText: {
+    color: '#FFFFFF',
   },
   placeholderContainer: {
     flex: 1,
