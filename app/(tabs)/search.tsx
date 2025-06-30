@@ -33,11 +33,18 @@ export default function SearchScreen() {
   
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all'); // disables category filtering by default
- 
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
   const [prompts, setPrompts] = useState<PromptWithUser[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+
+  useEffect(() => {
+    // If category was passed as a param, update the state but don't search yet
+    if (params.category && params.category !== 'all') {
+      setSelectedCategory(params.category as string);
+      handleCategorySearch(params.category as string);
+    }
+  }, [params.category]);
 
   const handleSearch = async () => {
     if (!searchTerm.trim() && selectedCategory === 'all') return;
@@ -94,10 +101,7 @@ export default function SearchScreen() {
   };
 
   const handlePromptPress = (promptId: string) => {
-    router.push({
-      pathname: '/prompt-detail',
-      params: { id: promptId }
-    });
+    router.push(`/prompt-detail/${promptId}`);
   };
 
   const clearSearch = () => {

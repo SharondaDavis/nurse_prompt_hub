@@ -265,9 +265,15 @@ export async function fetchPromptById(id: string): Promise<PromptWithUser | null
     process.env.EXPO_PUBLIC_SUPABASE_URL !== 'https://your-project-id.supabase.co' &&
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY !== 'your-anon-key-here';
 
+  console.log("Fetching prompt with ID:", id);
+
   if (!isSupabaseConfigured) {
+    console.log("Using mock data (Supabase not configured)");
     const prompt = mockPrompts.find(prompt => prompt.id === id);
-    if (!prompt) return null;
+    if (!prompt) {
+      console.error("Prompt not found in mock data:", id);
+      return null;
+    }
     
     if (!prompt.created_by || prompt.is_anonymous) {
       return {
@@ -294,6 +300,7 @@ export async function fetchPromptById(id: string): Promise<PromptWithUser | null
   }
 
   try {
+    console.log("Fetching from Supabase");
     const { data, error } = await supabase
       .from('prompts')
       .select(`
@@ -308,9 +315,16 @@ export async function fetchPromptById(id: string): Promise<PromptWithUser | null
       .single();
 
     if (error) {
-      console.error('Error fetching prompt:', error);
+      console.error('Error fetching prompt from Supabase:', error);
       return null;
     }
+
+    if (!data) {
+      console.error('No data returned from Supabase for prompt ID:', id);
+      return null;
+    }
+
+    console.log("Supabase returned data:", data.title);
 
     // Transform the data to include vote count
     const promptWithVotes = {
