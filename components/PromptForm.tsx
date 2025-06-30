@@ -15,6 +15,7 @@ import { X, Plus, Send, CircleAlert as AlertCircle, UserX } from 'lucide-react-n
 import { useSubmitPrompt } from '@/hooks/useSubmitPrompt';
 import { Database } from '@/types/database';
 import { Toast } from './Toast';
+import { CATEGORIES } from '@/app/(tabs)/categories';
 
 type Prompt = Database['public']['Tables']['prompts']['Row'];
 
@@ -22,15 +23,6 @@ interface PromptFormProps {
   onSuccess: (newPrompt: Prompt) => void;
   onCancel: () => void;
 }
-
-const CATEGORIES = [
-  'Code Blue Debrief',
-  'Burnout Self-Check', 
-  'Shift Report Prep',
-  'Prioritization Support',
-  'Care Plan Helper',
-  'Self-Care',
-];
 
 const SPECIALTIES = [
   'icu',
@@ -54,7 +46,7 @@ interface ValidationErrors {
 export function PromptForm({ onSuccess, onCancel }: PromptFormProps) {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [category, setCategory] = useState<'Code Blue Debrief' | 'Burnout Self-Check' | 'Shift Report Prep' | 'Prioritization Support' | 'Care Plan Helper' | 'Self-Care' | ''>('');
+  const [category, setCategory] = useState('');
   const [specialty, setSpecialty] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
@@ -311,26 +303,26 @@ export function PromptForm({ onSuccess, onCancel }: PromptFormProps) {
               </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={styles.optionsContainer}>
-                  {CATEGORIES.map((cat) => (
+                  {CATEGORIES.slice(1).map((cat) => (
                     <TouchableOpacity
-                      key={cat}
+                      key={cat.id}
                       style={[
                         styles.option,
-                        category === cat && styles.selectedOption,
+                        category === cat.id && styles.selectedOption,
                         touched.category && errors.category && !category && styles.optionError,
                       ]}
                       onPress={() => {
-                        setCategory(cat as any);
+                        setCategory(cat.id);
                         handleFieldBlur('category');
                       }}
                     >
                       <Text
                         style={[
                           styles.optionText,
-                          category === cat && styles.selectedOptionText,
+                          category === cat.id && styles.selectedOptionText,
                         ]}
                       >
-                        {cat}
+                        {cat.label}
                       </Text>
                     </TouchableOpacity>
                   ))}

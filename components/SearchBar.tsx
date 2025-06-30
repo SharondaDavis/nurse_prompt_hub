@@ -8,6 +8,7 @@ import {
   FlatList,
 } from 'react-native';
 import { Search, Filter, X, ChevronDown } from 'lucide-react-native';
+import { CATEGORIES } from '@/app/(tabs)/categories';
 
 interface SearchBarProps {
   onSearch: (query: string) => void;
@@ -16,18 +17,6 @@ interface SearchBarProps {
   selectedCategory: string;
   selectedSpecialty: string;
 }
-
-const CATEGORIES = [
-  { id: 'all', label: 'All Categories' },
-  { id: 'assessment', label: 'Assessment' },
-  { id: 'care-planning', label: 'Care Planning' },
-  { id: 'medication', label: 'Medication' },
-  { id: 'procedures', label: 'Procedures' },
-  { id: 'documentation', label: 'Documentation' },
-  { id: 'education', label: 'Patient Education' },
-  { id: 'communication', label: 'Communication' },
-  { id: 'emergency', label: 'Emergency Care' },
-];
 
 const SPECIALTIES = [
   { id: 'all', label: 'All Specialties' },

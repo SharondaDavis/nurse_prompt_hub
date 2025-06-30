@@ -23,21 +23,9 @@ import {
   Sparkles
 } from 'lucide-react-native';
 import { fetchPrompts, PromptWithUser } from '@/lib/fetchPrompts';
+import { CATEGORIES } from './categories';
 
 const { width: screenWidth } = Dimensions.get('window');
-
-const CATEGORIES = [
-  { id: 'all', label: 'All Categories' },
-  { id: 'Code Blue Debrief', label: 'Code Blue' },
-  { id: 'Burnout Self-Check', label: 'Burnout' },
-  { id: 'Shift Report Prep', label: 'Reports' },
-  { id: 'Prioritization Support', label: 'Priority' },
-  { id: 'Care Plan Helper', label: 'Care Plans' },
-  { id: 'Self-Care', label: 'Self-Care' },
-  { id: 'Medication Safety', label: 'Medication' },
-  { id: 'Patient Education', label: 'Education' },
-  { id: 'Emergency Response', label: 'Emergency' },
-];
 
 export default function SearchScreen() {
   const router = useRouter();
@@ -314,8 +302,8 @@ export default function SearchScreen() {
           </Text>
           <View style={styles.searchTips}>
             <Text style={styles.searchTipsTitle}>Search Tips:</Text>
-            <Text style={styles.searchTip}>• Try keywords like "code blue", "burnout", or "handoff"</Text>
-            <Text style={styles.searchTip}>• Use the category filter to narrow results</Text>
+            <Text style={styles.searchTip}>• Try keywords like "wound", "confused patient", or "NG tube"</Text>
+            <Text style={styles.searchTip}>• No need to pick a category - search for any problem or task</Text>
             <Text style={styles.searchTip}>• Search for specific specialties like "ICU" or "ER"</Text>
           </View>
         </View>

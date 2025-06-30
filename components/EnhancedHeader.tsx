@@ -11,6 +11,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { Search, ChevronDown, X, Stethoscope } from 'lucide-react-native';
+import { CATEGORIES } from '@/app/(tabs)/categories';
 
 interface EnhancedHeaderProps {
   onSearch: (query: string) => void;
@@ -18,16 +19,6 @@ interface EnhancedHeaderProps {
   selectedCategory: string;
   searchQuery?: string;
 }
-
-const CATEGORIES = [
-  { id: 'all', label: 'All Categories' },
-  { id: 'Code Blue Debrief', label: 'Code Blue Debrief' },
-  { id: 'Burnout Self-Check', label: 'Burnout Self-Check' },
-  { id: 'Shift Report Prep', label: 'Shift Report Prep' },
-  { id: 'Prioritization Support', label: 'Prioritization Support' },
-  { id: 'Care Plan Helper', label: 'Care Plan Helper' },
-  { id: 'Self-Care', label: 'Self-Care' },
-];
 
 const { width: screenWidth } = Dimensions.get('window');
 

@@ -103,7 +103,17 @@ export default function HomeScreen() {
             key={category.id}
             style={[
               styles.categoryChip,
-              { backgroundColor: category.color },
+              { backgroundColor: category.id === 'all' ? '#6366F1' : 
+                                category.id === 'assessment' ? '#EF4444' :
+                                category.id === 'charting' ? '#F59E0B' :
+                                category.id === 'handoff' ? '#10B981' :
+                                category.id === 'medication' ? '#3B82F6' :
+                                category.id === 'education' ? '#8B5CF6' :
+                                category.id === 'prioritization' ? '#EC4899' :
+                                category.id === 'skills' ? '#14B8A6' :
+                                category.id === 'communication' ? '#F97316' :
+                                category.id === 'selfcare' ? '#06B6D4' :
+                                category.id === 'emergency' ? '#DC2626' : '#6366F1' },
               selectedCategory === category.id && styles.selectedCategoryChip
             ]}
             onPress={() => handleCategoryPress(category.id)}
