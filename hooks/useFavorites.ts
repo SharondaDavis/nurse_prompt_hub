@@ -113,7 +113,7 @@ export function useFavorites() {
     }
   };
 
-  const isFavorite = (promptId: string) => {
+  const isFavorited = (promptId: string) => {
     return favorites.some(fav => fav.prompt_id === promptId);
   };
 
@@ -127,7 +127,8 @@ export function useFavorites() {
     error,
     addFavorite,
     removeFavorite,
-    isFavorite,
+    isFavorited, // <<-- This is what your component expects!
     refetch: loadFavorites,
   };
 }
+
