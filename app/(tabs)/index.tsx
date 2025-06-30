@@ -19,7 +19,7 @@ import {
   Sparkles,
   Stethoscope
 } from 'lucide-react-native';
-import { CATEGORIES } from '../../constants/categories';
+iimport { CATEGORIES } from './categories';
 
 const { width: screenWidth } = Dimensions.get('window');
 
