@@ -4,7 +4,7 @@ export const CATEGORIES = [
   { id: "charting", label: "Charting & Documentation" },
   { id: "handoff", label: "Handoff/Report" },
   { id: "medication", label: "Medication Safety" },
-  { id: "education", label: "Patient Education" },
+  { id: "patient", label: "Patient Education" },
   { id: "prioritization", label: "Prioritization & Delegation" },
   { id: "skills", label: "Skills & Procedures" },
   { id: "communication", label: "Communication" },
