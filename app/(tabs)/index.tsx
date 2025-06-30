@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -27,7 +27,7 @@ const FEATURED_PROMPTS = [
   {
     id: '550e8400-e29b-41d4-a716-446655440001',
     title: 'Code Blue Debrief Assistant',
-    category: 'Code Blue Debrief',
+    category: 'emergency',
     excerpt: 'Walk through post-code documentation and mindfulness grounding...',
     votes: 24,
     isPopular: true,
@@ -35,7 +35,7 @@ const FEATURED_PROMPTS = [
   {
     id: '550e8400-e29b-41d4-a716-446655440002',
     title: 'Post-Shift Reset Coach',
-    category: 'Burnout Self-Check',
+    category: 'selfcare',
     excerpt: 'Guide through 4-7-8 breathing and personalized reset strategies...',
     votes: 42,
     isNew: true,
@@ -43,7 +43,7 @@ const FEATURED_PROMPTS = [
   {
     id: '550e8400-e29b-41d4-a716-446655440004',
     title: 'Clinical Decision Partner',
-    category: 'Prioritization Support',
+    category: 'prioritization',
     excerpt: 'Help prioritize tasks during busy shifts with focused questions...',
     votes: 35,
     isPopular: true,
@@ -53,6 +53,7 @@ const FEATURED_PROMPTS = [
 export default function HomeScreen() {
   const router = useRouter();
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [metrics, setMetrics] = useState({ promptCount: 500, nurseCount: 10000 });
 
   const handleCategoryPress = (categoryId: string) => {
     setSelectedCategory(categoryId);
@@ -68,6 +69,13 @@ export default function HomeScreen() {
 
   const handleSearchPress = () => {
     router.push('/(tabs)/search');
+  };
+
+  const formatCount = (count: number): string => {
+    if (count >= 1000) {
+      return `${Math.floor(count / 1000)}K+`;
+    }
+    return `${count}+`;
   };
 
   const renderHeroSection = () => (
@@ -87,42 +95,6 @@ export default function HomeScreen() {
           </Text>
         </View>
       </View>
-    </View>
-  );
-
-  const renderCategoryChips = () => (
-    <View style={styles.categoriesSection}>
-      <Text style={styles.sectionTitle}>Browse by Category</Text>
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoriesContainer}
-      >
-        {CATEGORIES.map((category) => (
-          <TouchableOpacity
-            key={category.id}
-            style={[
-              styles.categoryChip,
-              { backgroundColor: category.id === 'all' ? '#6366F1' : 
-                                category.id === 'assessment' ? '#EF4444' :
-                                category.id === 'charting' ? '#F59E0B' :
-                                category.id === 'handoff' ? '#10B981' :
-                                category.id === 'medication' ? '#3B82F6' :
-                                category.id === 'education' ? '#8B5CF6' :
-                                category.id === 'prioritization' ? '#EC4899' :
-                                category.id === 'skills' ? '#14B8A6' :
-                                category.id === 'communication' ? '#F97316' :
-                                category.id === 'selfcare' ? '#06B6D4' :
-                                category.id === 'emergency' ? '#DC2626' : '#6366F1' },
-              selectedCategory === category.id && styles.selectedCategoryChip
-            ]}
-            onPress={() => handleCategoryPress(category.id)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.categoryChipText}>{category.label}</Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
     </View>
   );
 
@@ -177,7 +149,9 @@ export default function HomeScreen() {
             </Text>
             
             <View style={styles.promptCategory}>
-              <Text style={styles.categoryText}>{prompt.category}</Text>
+              <Text style={styles.categoryText}>
+                {CATEGORIES.find(cat => cat.id === prompt.category)?.label || prompt.category}
+              </Text>
             </View>
             
             <Text style={styles.promptExcerpt} numberOfLines={3}>
@@ -206,9 +180,9 @@ export default function HomeScreen() {
         <View style={styles.searchCTAContent}>
           <Search size={24} color="#6366F1" />
           <View style={styles.searchCTAText}>
-            <Text style={styles.searchCTATitle}>Search All Prompts</Text>
+            <Text style={styles.searchCTATitle}>Search Nursing Prompts</Text>
             <Text style={styles.searchCTASubtitle}>
-              Find exactly what you need from our growing library
+              Find exactly what you need - search by problem, task, or keyword
             </Text>
           </View>
           <ArrowRight size={20} color="#6366F1" />
@@ -225,7 +199,6 @@ export default function HomeScreen() {
         bounces={true}
       >
         {renderHeroSection()}
-        {renderCategoryChips()}
         {renderFeaturedPrompts()}
         {renderSearchCTA()}
         
@@ -282,40 +255,6 @@ const styles = StyleSheet.create({
     lineHeight: 26,
     opacity: 0.95,
   },
-  categoriesSection: {
-    paddingVertical: 24,
-    backgroundColor: '#FFFFFF',
-  },
-  sectionTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#1F2937',
-    marginBottom: 16,
-    paddingHorizontal: 24,
-  },
-  categoriesContainer: {
-    paddingHorizontal: 24,
-    gap: 12,
-  },
-  categoryChip: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 24,
-    marginRight: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  selectedCategoryChip: {
-    transform: [{ scale: 1.05 }],
-  },
-  categoryChipText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
   featuredSection: {
     paddingVertical: 24,
     backgroundColor: '#F8FAFC',
@@ -326,6 +265,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 24,
     marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#1F2937',
   },
   viewAllButton: {
     flexDirection: 'row',

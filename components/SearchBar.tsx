@@ -114,7 +114,7 @@ export function SearchBar({
           <Search size={20} color="#666666" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search nursing prompts..."
+            placeholder="Search for any problem, keyword, or task..."
             value={searchText}
             onChangeText={handleSearch}
             onSubmitEditing={handleSearchSubmit}
@@ -136,29 +136,28 @@ export function SearchBar({
         </TouchableOpacity>
       </View>
 
-      <View style={styles.quickFilters}>
-        <TouchableOpacity 
-          style={styles.quickFilter}
-          onPress={() => setShowFilters(!showFilters)}
-        >
-          <Text style={styles.quickFilterLabel}>Category</Text>
-          <View style={styles.quickFilterValue}>
-            <Text style={styles.quickFilterText}>{getSelectedCategoryLabel()}</Text>
-            <ChevronDown size={16} color="#666666" />
-          </View>
-        </TouchableOpacity>
+      <Text style={styles.searchTip}>
+        Tip: Search for any problem, keyword, or task—no need to pick a category.
+      </Text>
 
-        <TouchableOpacity 
-          style={styles.quickFilter}
-          onPress={() => setShowFilters(!showFilters)}
-        >
-          <Text style={styles.quickFilterLabel}>Specialty</Text>
-          <View style={styles.quickFilterValue}>
-            <Text style={styles.quickFilterText}>{getSelectedSpecialtyLabel()}</Text>
-            <ChevronDown size={16} color="#666666" />
-          </View>
-        </TouchableOpacity>
-      </View>
+      {/* Optional filters - less prominent */}
+      <TouchableOpacity 
+        style={styles.filtersToggle}
+        onPress={() => setShowFilters(!showFilters)}
+      >
+        <Filter size={16} color="#6B7280" />
+        <Text style={styles.filtersToggleText}>
+          {showFilters ? 'Hide filters' : 'Optional filters'}
+        </Text>
+        <ChevronDown 
+          size={14} 
+          color="#6B7280" 
+          style={[
+            styles.chevron,
+            showFilters && styles.chevronRotated
+          ]}
+        />
+      </TouchableOpacity>
 
       {showFilters && (
         <View style={styles.filtersContainer}>
@@ -203,12 +202,12 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    borderBottomColor: '#E5E7EB',
   },
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 8,
   },
   searchContainer: {
     flex: 1,
@@ -251,49 +250,43 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textAlign: 'center',
   },
-  quickFilters: {
-    flexDirection: 'row',
-    gap: 12,
+  searchTip: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontStyle: 'italic',
+    marginBottom: 12,
   },
-  quickFilter: {
-    flex: 1,
-    backgroundColor: '#F9F9F9',
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E5E5E5',
-  },
-  quickFilterLabel: {
-    fontSize: 12,
-    color: '#666666',
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  quickFilterValue: {
+  filtersToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingVertical: 6,
+    gap: 6,
   },
-  quickFilterText: {
+  filtersToggleText: {
     fontSize: 14,
-    color: '#333333',
-    fontWeight: '600',
+    color: '#6B7280',
     flex: 1,
   },
+  chevron: {
+    transform: [{ rotate: '0deg' }],
+  },
+  chevronRotated: {
+    transform: [{ rotate: '180deg' }],
+  },
   filtersContainer: {
-    marginTop: 20,
-    paddingTop: 20,
+    marginTop: 12,
+    paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#E5E5E5',
+    borderTopColor: '#E5E7EB',
   },
   filterSection: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   filterLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#333333',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   filterOptions: {
     paddingRight: 20,
@@ -326,6 +319,7 @@ const styles = StyleSheet.create({
   },
   filterActions: {
     alignItems: 'flex-start',
+    marginTop: 8,
   },
   resetButton: {
     display: 'flex',

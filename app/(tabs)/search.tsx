@@ -73,7 +73,6 @@ export default function SearchScreen() {
 
   const handleCategorySearch = (categoryId: string) => {
     setSelectedCategory(categoryId);
-    setSearchTerm(categoryId === 'all' ? '' : categoryId);
     
     // If it's not "all", perform search with the category
     if (categoryId !== 'all') {
@@ -136,7 +135,7 @@ export default function SearchScreen() {
         <Search size={20} color="#6B7280" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search nursing prompts..."
+          placeholder="Search for any nursing problem, task, or keyword..."
           value={searchTerm}
           onChangeText={setSearchTerm}
           placeholderTextColor="#9CA3AF"
@@ -174,10 +173,10 @@ export default function SearchScreen() {
         style={styles.filterButton}
         onPress={() => setShowCategoryFilter(!showCategoryFilter)}
       >
-        <Filter size={20} color="#6366F1" />
+        <Filter size={16} color="#6366F1" style={styles.filterIcon} />
         <Text style={styles.filterButtonText}>{getSelectedCategoryLabel()}</Text>
         <ChevronDown 
-          size={16} 
+          size={14} 
           color="#6366F1" 
           style={[
             styles.chevron,
@@ -298,7 +297,7 @@ export default function SearchScreen() {
           <Search size={64} color="#D1D5DB" />
           <Text style={styles.placeholderTitle}>Search Nursing Prompts</Text>
           <Text style={styles.placeholderText}>
-            Enter keywords to find prompts that match your needs. Search by title, content, or tags.
+            Enter keywords to find prompts that match your needs. Search by any problem, task, or keyword.
           </Text>
           <View style={styles.searchTips}>
             <Text style={styles.searchTipsTitle}>Search Tips:</Text>
@@ -341,7 +340,7 @@ export default function SearchScreen() {
       <View style={styles.resultsContainer}>
         <Text style={styles.resultsCount}>
           {prompts.length} prompt{prompts.length !== 1 ? 's' : ''} found
-          {searchTerm ? ` for "${searchTerm}"` : selectedCategory !== 'all' ? ` in ${selectedCategory}` : ''}
+          {searchTerm ? ` for "${searchTerm}"` : selectedCategory !== 'all' ? ` in ${getSelectedCategoryLabel()}` : ''}
         </Text>
         <FlatList
           data={prompts}
@@ -358,7 +357,12 @@ export default function SearchScreen() {
   return (
     <SafeAreaView style={styles.container}>
       {renderSearchHeader()}
-      {renderCategoryFilter()}
+      
+      {/* Show category filter in a more subtle way */}
+      <View style={styles.filterSection}>
+        <Text style={styles.filterHint}>Optional: Filter by category</Text>
+        {renderCategoryFilter()}
+      </View>
       
       {/* Show category chips only when no search has been performed */}
       {!hasSearched && renderCategoryChips()}
@@ -377,7 +381,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
@@ -423,21 +427,34 @@ const styles = StyleSheet.create({
   searchButtonTextDisabled: {
     color: '#9CA3AF',
   },
-  categoryFilterContainer: {
+  filterSection: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
+  },
+  filterHint: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 4,
+    fontStyle: 'italic',
+  },
+  categoryFilterContainer: {
+    position: 'relative',
   },
   filterButton: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F0F4FF',
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 8,
     borderRadius: 8,
-    gap: 8,
+    maxWidth: 200,
+  },
+  filterIcon: {
+    marginRight: 6,
+    opacity: 0.7,
   },
   filterButtonText: {
     flex: 1,
@@ -452,7 +469,10 @@ const styles = StyleSheet.create({
     transform: [{ rotate: '180deg' }],
   },
   categoryDropdown: {
-    marginTop: 8,
+    position: 'absolute',
+    top: 40,
+    left: 0,
+    right: 0,
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
     borderWidth: 1,
@@ -462,6 +482,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    zIndex: 10,
   },
   categoryOption: {
     paddingHorizontal: 16,
@@ -484,7 +505,7 @@ const styles = StyleSheet.create({
   // Category chips styles
   categoryChipsContainer: {
     backgroundColor: '#FFFFFF',
-    paddingVertical: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
@@ -518,6 +539,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 32,
+    paddingVertical: 40,
   },
   placeholderTitle: {
     fontSize: 24,
