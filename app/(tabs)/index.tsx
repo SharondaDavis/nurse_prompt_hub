@@ -19,18 +19,9 @@ import {
   Sparkles,
   Stethoscope
 } from 'lucide-react-native';
+import { CATEGORIES } from '../../constants/categories';
 
 const { width: screenWidth } = Dimensions.get('window');
-
-const CATEGORIES = [
-  { id: 'all', label: 'All', color: '#6366F1' },
-  { id: 'Code Blue Debrief', label: 'Code Blue', color: '#EF4444' },
-  { id: 'Burnout Self-Check', label: 'Burnout', color: '#F59E0B' },
-  { id: 'Shift Report Prep', label: 'Reports', color: '#10B981' },
-  { id: 'Prioritization Support', label: 'Priority', color: '#8B5CF6' },
-  { id: 'Care Plan Helper', label: 'Care Plans', color: '#06B6D4' },
-  { id: 'Self-Care', label: 'Self-Care', color: '#EC4899' },
-];
 
 const FEATURED_PROMPTS = [
   {
