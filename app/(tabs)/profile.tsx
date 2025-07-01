@@ -23,7 +23,7 @@ import { supabase } from '@/lib/supabaseClient';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { user, profile, isLoading: userLoading } = useUser();
+  const { user, profile, isLoading: userLoading, signOut } = useUser();
   const { favorites, loading: favoritesLoading } = useFavorites();
   const { votes } = useVoting();
   const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'favorites', 'contributions', 'settings'
@@ -92,7 +92,7 @@ export default function ProfileScreen() {
           onPress: async () => {
             try {
               setIsSigningOut(true);
-              await supabase.auth.signOut();
+              await signOut();
               router.replace('/login');
             } catch (error) {
               Alert.alert('Error', 'Failed to sign out. Please try again.');
