@@ -31,8 +31,7 @@ export default function TabLayout() {
           paddingHorizontal: 8,
         },
         tabBarLabelPosition: 'beside-icon',
-      }}
-    >
+      }}>
       <Tabs.Screen
         name="index"
         options={{
@@ -57,6 +56,15 @@ export default function TabLayout() {
           title: 'Submit',
           tabBarIcon: ({ size, color }) => (
             <Ionicons name="add-circle" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="shadow-demo"
+        options={{
+          title: 'Shadows',
+          tabBarIcon: ({ size, color }) => (
+            <Ionicons name="layers" size={size} color={color} />
           ),
         }}
       />
