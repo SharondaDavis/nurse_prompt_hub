@@ -38,6 +38,30 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
     process.env.EXPO_PUBLIC_SUPABASE_URL !== 'https://your-project-id.supabase.co' &&
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY !== 'your-anon-key-here';
 
+  const handleSupabaseError = (error: any) => {
+    if (error.message?.includes('captcha verification process failed')) {
+      Alert.alert(
+        'Authentication Configuration Issue',
+        'Your Supabase project has reCAPTCHA enabled. To fix this:\n\n1. Go to your Supabase Dashboard\n2. Navigate to Authentication → Settings\n3. Disable reCAPTCHA protection\n\nAlternatively, you can use Demo Mode for now.',
+        [
+          { text: 'Use Demo Mode', onPress: handleDemoAccess },
+          { text: 'OK', style: 'default' }
+        ]
+      );
+    } else if (error.message?.includes('Email not confirmed')) {
+      Alert.alert(
+        'Email Not Verified', 
+        'Please check your email and click the verification link before signing in.',
+        [
+          { text: 'Resend Email', onPress: () => resendConfirmation(email) },
+          { text: 'OK', style: 'default' }
+        ]
+      );
+    } else {
+      Alert.alert('Authentication Failed', error.message || 'An unexpected error occurred. Please try again.');
+    }
+  };
+
   const handleSignIn = async () => {
     if (!isSupabaseConfigured) {
       // Demo mode - simulate successful sign in
@@ -63,18 +87,7 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
       });
 
       if (error) {
-        if (error.message.includes('Email not confirmed')) {
-          Alert.alert(
-            'Email Not Verified', 
-            'Please check your email and click the verification link before signing in.',
-            [
-              { text: 'Resend Email', onPress: () => resendConfirmation(email) },
-              { text: 'OK', style: 'default' }
-            ]
-          );
-        } else {
-          Alert.alert('Sign In Failed', error.message);
-        }
+        handleSupabaseError(error);
       } else if (data.user) {
         // Check if email is confirmed
         if (!data.user.email_confirmed_at) {
@@ -90,8 +103,8 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
           onAuthSuccess?.();
         }
       }
-    } catch (err) {
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } catch (err: any) {
+      handleSupabaseError(err);
     }
     
     setIsLoading(false);
@@ -144,7 +157,7 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
       });
 
       if (error) {
-        Alert.alert('Sign Up Failed', error.message);
+        handleSupabaseError(error);
         setIsLoading(false);
         return;
       }
@@ -154,8 +167,8 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
         setPendingEmail(email);
         setShowEmailSent(true);
       }
-    } catch (err) {
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+    } catch (err: any) {
+      handleSupabaseError(err);
       setIsLoading(false);
       return;
     }
@@ -169,18 +182,22 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
     setIsLoading(true);
     const currentUrl = typeof window !== 'undefined' ? window.location.origin : '';
     
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email: emailAddress,
-      options: {
-        emailRedirectTo: `${currentUrl}/auth/callback`
-      }
-    });
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: emailAddress,
+        options: {
+          emailRedirectTo: `${currentUrl}/auth/callback`
+        }
+      });
 
-    if (error) {
-      Alert.alert('Error', 'Failed to resend confirmation email. Please try again.');
-    } else {
-      Alert.alert('Email Sent', 'A new confirmation email has been sent to your inbox.');
+      if (error) {
+        handleSupabaseError(error);
+      } else {
+        Alert.alert('Email Sent', 'A new confirmation email has been sent to your inbox.');
+      }
+    } catch (err: any) {
+      handleSupabaseError(err);
     }
     setIsLoading(false);
   };
@@ -434,6 +451,13 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
                 </Text>
               </View>
             )}
+
+            {/* reCAPTCHA Notice */}
+            <View style={styles.captchaNotice}>
+              <Text style={styles.captchaText}>
+                💡 If you encounter authentication issues, try using Demo Mode or check your Supabase reCAPTCHA settings
+              </Text>
+            </View>
           </View>
         )}
 
@@ -571,6 +595,18 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#1E40AF',
     textAlign: 'center',
+  },
+  captchaNotice: {
+    backgroundColor: '#F3F4F6',
+    padding: 12,
+    borderRadius: 8,
+    marginTop: 16,
+  },
+  captchaText: {
+    fontSize: 12,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 16,
   },
   button: {
     borderRadius: 12,
