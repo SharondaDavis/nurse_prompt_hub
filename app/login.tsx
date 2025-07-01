@@ -12,39 +12,43 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
-import HCaptcha from "../components/HCaptcha";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
-  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   const handleAuth = async () => {
-    if (!email || !password || (Platform.OS !== "web" && !captchaToken)) {
-      Alert.alert("Missing Info", "Please complete all fields and CAPTCHA.");
+    if (!email || !password) {
+      Alert.alert("Missing Info", "Please enter both email and password.");
       return;
     }
 
     try {
       if (isSignUp) {
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
-          options: Platform.OS !== "web" ? { captchaToken } : {},
+          options: {
+            emailRedirectTo: "https://nurse-prompt-hub.vercel.app/welcome", // update as needed
+          },
         });
 
-        if (signUpError) throw signUpError;
-        Alert.alert("Success", "Check your email to confirm your account.");
+        if (error) throw error;
+
+        Alert.alert(
+          "Sign Up Successful",
+          "Please check your email to confirm your account."
+        );
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
-          options: Platform.OS !== "web" ? { captchaToken } : {},
         });
 
         if (error) throw error;
-        Alert.alert("Success", "You're signed in!");
+
+        Alert.alert("Welcome Back", "You're now signed in!");
       }
     } catch (error: any) {
       Alert.alert("Auth Error", error.message || "Something went wrong.");
@@ -60,7 +64,7 @@ export default function LoginScreen() {
         >
           <Text style={styles.title}>Nurse Prompt Hub</Text>
           <Text style={styles.subtitle}>
-            {isSignUp ? "Create a new account" : "Sign in to continue"}
+            {isSignUp ? "Create an account" : "Sign in to your account"}
           </Text>
 
           <TextInput
@@ -80,19 +84,17 @@ export default function LoginScreen() {
             secureTextEntry
           />
 
-          {Platform.OS !== "web" && (
-            <HCaptcha onVerify={(token) => setCaptchaToken(token)} />
-          )}
-
           <TouchableOpacity style={styles.button} onPress={handleAuth}>
-            <Text style={styles.buttonText}>{isSignUp ? "Sign Up" : "Sign In"}</Text>
+            <Text style={styles.buttonText}>
+              {isSignUp ? "Sign Up" : "Sign In"}
+            </Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)}>
             <Text style={styles.toggleText}>
               {isSignUp
-                ? "Already have an account? Sign in here"
-                : "Don't have an account? Sign up now"}
+                ? "Already have an account? Sign in"
+                : "Don't have an account? Sign up"}
             </Text>
           </TouchableOpacity>
         </KeyboardAvoidingView>
@@ -102,19 +104,9 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#F8FAFC",
-  },
-  inner: {
-    flexGrow: 1,
-    justifyContent: "center",
-    padding: 24,
-  },
-  keyboard: {
-    flex: 1,
-    justifyContent: "center",
-  },
+  container: { flex: 1, backgroundColor: "#F8FAFC" },
+  inner: { flexGrow: 1, justifyContent: "center", padding: 24 },
+  keyboard: { flex: 1, justifyContent: "center" },
   title: {
     fontSize: 28,
     fontWeight: "700",
@@ -129,7 +121,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   input: {
-    backgroundColor: "#ffffff",
+    backgroundColor: "#fff",
     borderWidth: 1,
     borderColor: "#E5E7EB",
     borderRadius: 8,
@@ -145,11 +137,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 8,
   },
-  buttonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  buttonText: { color: "#FFF", fontSize: 16, fontWeight: "600" },
   toggleText: {
     color: "#4B5563",
     fontSize: 14,
