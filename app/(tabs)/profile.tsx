@@ -19,7 +19,6 @@ import { useUser } from '@/hooks/useUser';
 import { useVoting } from '@/hooks/useVoting';
 import { fetchPromptsByUser, PromptWithUser } from '@/lib/fetchPrompts';
 import { Auth } from '@/components/Auth';
-import { supabase } from '@/lib/supabaseClient';
 
 export default function ProfileScreen() {
   const router = useRouter();
