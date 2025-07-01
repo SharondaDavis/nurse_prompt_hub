@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
+import { Platform } from 'react-native';
 import { supabase } from '@/lib/supabaseClient';
 import { User } from '@supabase/supabase-js';
 import { Database } from '@/types/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Alert, Platform } from 'react-native';
+import { Alert } from 'react-native';
 
 type UserProfile = Database['public']['Tables']['user_profiles']['Row'];
 
@@ -178,17 +179,21 @@ export function useUser() {
       if (!isSupabaseConfigured) {
         // Mock sign out for demo
         await new Promise(resolve => setTimeout(resolve, 500)); // Simulate network delay
-        setUser(null);
-        setProfile(null);
+        if (mountedRef.current) {
+          setUser(null);
+          setProfile(null);
+        }
         
         // Clear any stored data
         try {
-          await AsyncStorage.multiRemove([
-            'favorites',
-            'votes',
-            'user-settings',
-            'recent-prompts'
-          ]);
+          if (Platform.OS !== 'web') {
+            await AsyncStorage.multiRemove([
+              'favorites',
+              'votes',
+              'user-settings',
+              'recent-prompts'
+            ]);
+          }
         } catch (err) {
           console.error('Error clearing storage during sign out:', err);
         }
@@ -207,19 +212,23 @@ export function useUser() {
       
       // Clear any stored data
       try {
-        await AsyncStorage.multiRemove([
-          'favorites',
-          'votes',
-          'user-settings',
-          'recent-prompts'
-        ]);
+        if (Platform.OS !== 'web') {
+          await AsyncStorage.multiRemove([
+            'favorites',
+            'votes',
+            'user-settings',
+            'recent-prompts'
+          ]);
+        }
       } catch (err) {
         console.error('Error clearing storage during sign out:', err);
       }
       
       // Explicitly clear user and profile state
-      setUser(null);
-      setProfile(null);
+      if (mountedRef.current) {
+        setUser(null);
+        setProfile(null);
+      }
       
       return true;
     } catch (error) {
@@ -229,7 +238,9 @@ export function useUser() {
       }
       throw error;
     } finally {
-      setIsLoading(false);
+      if (mountedRef.current) {
+        setIsLoading(false);
+      }
     }
   };
 

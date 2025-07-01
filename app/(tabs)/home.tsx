@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Image,
   Dimensions,
   SafeAreaView,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { 
@@ -72,13 +73,21 @@ export default function HomeScreen() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [metrics, setMetrics] = useState<Metrics>({ promptCount: 0, nurseCount: 0 });
   const [isLoadingMetrics, setIsLoadingMetrics] = useState(true);
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
     fetchMetrics();
+    
+    return () => {
+      mountedRef.current = false;
+    };
   }, []);
 
   const fetchMetrics = async () => {
     try {
+      if (!mountedRef.current) return;
+      
       setIsLoadingMetrics(true);
 
       // Check if Supabase is properly configured
@@ -90,8 +99,10 @@ export default function HomeScreen() {
 
       if (!isSupabaseConfigured) {
         // Use mock data when Supabase is not configured
-        setMetrics({ promptCount: 500, nurseCount: 10000 });
-        setIsLoadingMetrics(false);
+        if (mountedRef.current) {
+          setMetrics({ promptCount: 500, nurseCount: 10000 });
+          setIsLoadingMetrics(false);
+        }
         return;
       }
 
@@ -116,13 +127,19 @@ export default function HomeScreen() {
         console.warn('Failed to fetch nurse count, using fallback');
       }
 
-      setMetrics({ promptCount, nurseCount });
+      if (mountedRef.current) {
+        setMetrics({ promptCount, nurseCount });
+      }
     } catch (error) {
       console.error('Error fetching metrics:', error);
       // Fallback to default values on error
-      setMetrics({ promptCount: 500, nurseCount: 10000 });
+      if (mountedRef.current) {
+        setMetrics({ promptCount: 500, nurseCount: 10000 });
+      }
     } finally {
-      setIsLoadingMetrics(false);
+      if (mountedRef.current) {
+        setIsLoadingMetrics(false);
+      }
     }
   };
 

@@ -1,16 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
-import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
+import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Configure notification behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 export interface ReminderNotification {
   id: string;
@@ -36,18 +38,23 @@ export function useNotifications() {
   const [scheduledReminders, setScheduledReminders] = useState<ScheduledReminder[]>([]);
   const notificationListener = useRef<Notifications.Subscription>();
   const responseListener = useRef<Notifications.Subscription>();
+  const mountedRef = useRef(true);
 
   useEffect(() => {
+    mountedRef.current = true;
+
     if (Platform.OS !== 'web') {
       registerForPushNotificationsAsync().then(token => {
-        if (token) {
+        if (token && mountedRef.current) {
           setExpoPushToken(token);
         }
       });
 
       // Listen for notifications received while app is running
       notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
-        setNotification(notification);
+        if (mountedRef.current) {
+          setNotification(notification);
+        }
       });
 
       // Listen for user interactions with notifications
@@ -65,6 +72,7 @@ export function useNotifications() {
     }
 
     return () => {
+      mountedRef.current = false;
       if (notificationListener.current) {
         Notifications.removeNotificationSubscription(notificationListener.current);
       }
@@ -84,12 +92,17 @@ export function useNotifications() {
 
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
-    setPermissionStatus(finalStatus);
+    
+    if (mountedRef.current) {
+      setPermissionStatus(finalStatus);
+    }
 
     if (existingStatus !== 'granted') {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
-      setPermissionStatus(finalStatus);
+      if (mountedRef.current) {
+        setPermissionStatus(finalStatus);
+      }
     }
 
     if (finalStatus !== 'granted') {
@@ -287,11 +300,16 @@ export function useNotifications() {
 
   const saveScheduledReminder = async (reminder: ScheduledReminder): Promise<void> => {
     try {
+      if (Platform.OS === 'web') return;
+      
       const existingReminders = await AsyncStorage.getItem('scheduledReminders');
       const reminders: ScheduledReminder[] = existingReminders ? JSON.parse(existingReminders) : [];
       reminders.push(reminder);
       await AsyncStorage.setItem('scheduledReminders', JSON.stringify(reminders));
-      setScheduledReminders(reminders);
+      
+      if (mountedRef.current) {
+        setScheduledReminders(reminders);
+      }
     } catch (error) {
       console.error('Error saving scheduled reminder:', error);
     }
@@ -299,6 +317,8 @@ export function useNotifications() {
 
   const loadScheduledReminders = async (): Promise<void> => {
     try {
+      if (Platform.OS === 'web') return;
+      
       const existingReminders = await AsyncStorage.getItem('scheduledReminders');
       if (existingReminders) {
         const reminders: ScheduledReminder[] = JSON.parse(existingReminders);
@@ -306,7 +326,11 @@ export function useNotifications() {
         const activeReminders = reminders.filter(reminder => 
           new Date(reminder.scheduledFor) > new Date() && reminder.isActive
         );
-        setScheduledReminders(activeReminders);
+        
+        if (mountedRef.current) {
+          setScheduledReminders(activeReminders);
+        }
+        
         // Update storage with filtered reminders
         await AsyncStorage.setItem('scheduledReminders', JSON.stringify(activeReminders));
       }
@@ -324,8 +348,14 @@ export function useNotifications() {
           const updatedReminders = scheduledReminders.map(r =>
             r.id === reminderId ? { ...r, isActive: false } : r
           );
-          setScheduledReminders(updatedReminders);
-          await AsyncStorage.setItem('scheduledReminders', JSON.stringify(updatedReminders));
+          
+          if (mountedRef.current) {
+            setScheduledReminders(updatedReminders);
+          }
+          
+          if (Platform.OS !== 'web') {
+            await AsyncStorage.setItem('scheduledReminders', JSON.stringify(updatedReminders));
+          }
           return true;
         }
       }
@@ -346,9 +376,12 @@ export function useNotifications() {
     try {
       if (Platform.OS !== 'web') {
         await Notifications.cancelAllScheduledNotificationsAsync();
+        await AsyncStorage.removeItem('scheduledReminders');
       }
-      await AsyncStorage.removeItem('scheduledReminders');
-      setScheduledReminders([]);
+      
+      if (mountedRef.current) {
+        setScheduledReminders([]);
+      }
     } catch (error) {
       console.error('Error clearing all reminders:', error);
     }
