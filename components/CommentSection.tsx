@@ -9,7 +9,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { MessageSquare, Send, MoveVertical as MoreVertical, CreditCard as Edit, Trash, Clock } from 'lucide-react-native';
+import { MessageSquare, Send, X, Edit, Trash, Clock } from 'lucide-react-native';
 import { useComments, Comment } from '@/hooks/useComments';
 import { useUser } from '@/hooks/useUser';
 import { UserAvatar } from './UserAvatar';
@@ -116,10 +116,6 @@ export function CommentSection({ promptId, onSignInRequired }: CommentSectionPro
     );
   };
 
-  const toggleMenu = (commentId: string) => {
-    setExpandedMenuId(expandedMenuId === commentId ? null : commentId);
-  };
-
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -173,31 +169,29 @@ export function CommentSection({ promptId, onSignInRequired }: CommentSectionPro
 
           {canEdit && (
             <View style={styles.commentActions}>
-              <TouchableOpacity 
-                onPress={() => toggleMenu(item.id)}
-                style={styles.menuButton}
-              >
-                <MoreVertical size={16} color="#6B7280" />
-              </TouchableOpacity>
-              
-              {expandedMenuId === item.id && (
-                <View style={styles.menuDropdown}>
+              {isEditing ? (
+                <TouchableOpacity 
+                  onPress={handleCancelEdit}
+                  style={styles.editButton}
+                >
+                  <X size={16} color="#6B7280" />
+                </TouchableOpacity>
+              ) : (
+                <>
                   <TouchableOpacity 
-                    style={styles.menuItem}
                     onPress={() => handleEditComment(item)}
+                    style={styles.editButton}
                   >
                     <Edit size={16} color="#6366F1" />
-                    <Text style={styles.menuItemText}>Edit</Text>
                   </TouchableOpacity>
                   
                   <TouchableOpacity 
-                    style={styles.menuItem}
                     onPress={() => handleDeleteComment(item.id)}
+                    style={styles.deleteButton}
                   >
                     <Trash size={16} color="#EF4444" />
-                    <Text style={[styles.menuItemText, styles.deleteText]}>Delete</Text>
                   </TouchableOpacity>
-                </View>
+                </>
               )}
             </View>
           )}
@@ -419,39 +413,14 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   commentActions: {
-    position: 'relative',
-  },
-  menuButton: {
-    padding: 4,
-  },
-  menuDropdown: {
-    position: 'absolute',
-    top: 24,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    zIndex: 10,
-    width: 120,
-  },
-  menuItem: {
     flexDirection: 'row',
-    alignItems: 'center',
-    padding: 12,
     gap: 8,
   },
-  menuItemText: {
-    fontSize: 14,
-    color: '#1F2937',
+  editButton: {
+    padding: 4,
   },
-  deleteText: {
-    color: '#EF4444',
+  deleteButton: {
+    padding: 4,
   },
   editContainer: {
     marginTop: 8,

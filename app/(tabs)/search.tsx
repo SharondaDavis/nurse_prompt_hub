@@ -9,7 +9,6 @@ import {
   SafeAreaView,
   Dimensions,
   ActivityIndicator,
-  ScrollView,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { 
@@ -32,7 +31,7 @@ export default function SearchScreen() {
   const params = useLocalSearchParams();
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all'); // disables category filtering by default
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [showCategoryFilter, setShowCategoryFilter] = useState(false);
   const [prompts, setPrompts] = useState<PromptWithUser[]>([]);
   const [loading, setLoading] = useState(false);
@@ -164,76 +163,6 @@ export default function SearchScreen() {
     </View>
   );
 
-  const renderCategoryFilter = () => (
-    <View style={styles.categoryFilterContainer}>
-      <TouchableOpacity
-        style={styles.filterButton}
-        onPress={() => setShowCategoryFilter(!showCategoryFilter)}
-      >
-        <Filter size={16} color="#6366F1" style={styles.filterIcon} />
-        <Text style={styles.filterButtonText}>{getSelectedCategoryLabel()}</Text>
-        <ChevronDown 
-          size={14} 
-          color="#6366F1" 
-          style={[
-            styles.chevron,
-            showCategoryFilter && styles.chevronRotated
-          ]}
-        />
-      </TouchableOpacity>
-
-      {showCategoryFilter && (
-        <View style={styles.categoryDropdown}>
-          {CATEGORIES.map((category) => (
-            <TouchableOpacity
-              key={category.id}
-              style={[
-                styles.categoryOption,
-                selectedCategory === category.id && styles.selectedCategoryOption
-              ]}
-              onPress={() => handleCategorySelect(category.id)}
-            >
-              <Text style={[
-                styles.categoryOptionText,
-                selectedCategory === category.id && styles.selectedCategoryOptionText
-              ]}>
-                {category.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-    </View>
-  );
-
-  const renderCategoryChips = () => (
-    <View style={styles.categoryChipsContainer}>
-      <ScrollView 
-        horizontal 
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.categoryChipsScrollContent}
-      >
-        {CATEGORIES.map((category) => (
-          <TouchableOpacity
-            key={category.id}
-            style={[
-              styles.categoryChip,
-              selectedCategory === category.id && styles.selectedCategoryChip
-            ]}
-            onPress={() => handleCategorySearch(category.id)}
-          >
-            <Text style={[
-              styles.categoryChipText,
-              selectedCategory === category.id && styles.selectedCategoryChipText
-            ]}>
-              {category.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
-  );
-
   const renderPromptCard = ({ item, index }: { item: PromptWithUser; index: number }) => (
     <TouchableOpacity
       style={[
@@ -354,15 +283,6 @@ export default function SearchScreen() {
   return (
     <SafeAreaView style={styles.container}>
       {renderSearchHeader()}
-      
-      {/* Show category filter in a more subtle way */}
-      <View style={styles.filterSection}>
-        <Text style={styles.filterHint}>Optional: Filter by category</Text>
-        {renderCategoryFilter()}
-      </View>
-      
-      {/* Show category chips only when no search has been performed */}
-      {!hasSearched && renderCategoryChips()}
       
       {renderContent()}
     </SafeAreaView>
@@ -499,38 +419,6 @@ const styles = StyleSheet.create({
     color: '#6366F1',
     fontWeight: '600',
   },
-  // Category chips styles
-  categoryChipsContainer: {
-    backgroundColor: '#FFFFFF',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  categoryChipsScrollContent: {
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  categoryChip: {
-    backgroundColor: '#F3F4F6',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  selectedCategoryChip: {
-    backgroundColor: '#6366F1',
-    borderColor: '#4F46E5',
-  },
-  categoryChipText: {
-    fontSize: 14,
-    color: '#4B5563',
-    fontWeight: '600',
-  },
-  selectedCategoryChipText: {
-    color: '#FFFFFF',
-  },
   placeholderContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -641,13 +529,12 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
     marginBottom: 16,
+    width: (screenWidth - 48) / 2,
   },
   promptCardLeft: {
-    width: (screenWidth - 48) / 2,
     marginRight: 8,
   },
   promptCardRight: {
-    width: (screenWidth - 48) / 2,
     marginLeft: 8,
   },
   promptCardHeader: {

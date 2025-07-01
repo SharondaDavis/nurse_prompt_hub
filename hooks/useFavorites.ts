@@ -1,13 +1,14 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabaseClient';
 import { useUser } from './useUser';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface Favorite {
   id: string;
   user_id: string;
   prompt_id: string;
   created_at: string;
-  prompts: {
+  prompts?: {
     id: string;
     title: string;
     category: string;
@@ -22,6 +23,17 @@ export function useFavorites() {
   const [error, setError] = useState<string | null>(null);
   const { user } = useUser();
 
+  // Check if Supabase is properly configured
+  const isSupabaseConfigured = 
+    process.env.EXPO_PUBLIC_SUPABASE_URL && 
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY &&
+    process.env.EXPO_PUBLIC_SUPABASE_URL !== 'https://your-project-id.supabase.co' &&
+    process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY !== 'your-anon-key-here';
+
+  useEffect(() => {
+    loadFavorites();
+  }, [user]);
+
   const loadFavorites = async () => {
     if (!user) {
       setFavorites([]);
@@ -33,6 +45,24 @@ export function useFavorites() {
       setLoading(true);
       setError(null);
 
+      if (!isSupabaseConfigured) {
+        // Use local storage for demo mode
+        try {
+          const storedFavorites = await AsyncStorage.getItem('favorites');
+          if (storedFavorites) {
+            setFavorites(JSON.parse(storedFavorites));
+          } else {
+            setFavorites([]);
+          }
+        } catch (err) {
+          console.error('Error loading favorites from storage:', err);
+          setFavorites([]);
+        }
+        setLoading(false);
+        return;
+      }
+
+      // Use Supabase when properly configured
       const { data, error: fetchError } = await supabase
         .from('favorites')
         .select(`
@@ -70,6 +100,28 @@ export function useFavorites() {
     if (!user) return false;
 
     try {
+      if (!isSupabaseConfigured) {
+        // Use local storage for demo mode
+        const newFavorite: Favorite = {
+          id: `fav-${Date.now()}`,
+          user_id: user.id,
+          prompt_id: promptId,
+          created_at: new Date().toISOString(),
+        };
+        
+        const updatedFavorites = [...favorites, newFavorite];
+        setFavorites(updatedFavorites);
+        
+        try {
+          await AsyncStorage.setItem('favorites', JSON.stringify(updatedFavorites));
+        } catch (err) {
+          console.error('Error saving favorites to storage:', err);
+        }
+        
+        return true;
+      }
+
+      // Use Supabase when properly configured
       const { error } = await supabase
         .from('favorites')
         .insert({
@@ -94,6 +146,21 @@ export function useFavorites() {
     if (!user) return false;
 
     try {
+      if (!isSupabaseConfigured) {
+        // Use local storage for demo mode
+        const updatedFavorites = favorites.filter(fav => fav.prompt_id !== promptId);
+        setFavorites(updatedFavorites);
+        
+        try {
+          await AsyncStorage.setItem('favorites', JSON.stringify(updatedFavorites));
+        } catch (err) {
+          console.error('Error saving favorites to storage:', err);
+        }
+        
+        return true;
+      }
+
+      // Use Supabase when properly configured
       const { error } = await supabase
         .from('favorites')
         .delete()
@@ -117,18 +184,13 @@ export function useFavorites() {
     return favorites.some(fav => fav.prompt_id === promptId);
   };
 
-  useEffect(() => {
-    loadFavorites();
-  }, [user]);
-
   return {
     favorites,
     loading,
     error,
     addFavorite,
     removeFavorite,
-    isFavorited, // <<-- This is what your component expects!
+    isFavorited,
     refetch: loadFavorites,
   };
 }
-

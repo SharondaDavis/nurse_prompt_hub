@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useUser } from './useUser';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface Comment {
   id: string;
@@ -43,47 +44,61 @@ export function useComments(promptId?: string) {
 
       if (!isSupabaseConfigured) {
         // Mock data for demo mode
-        const mockComments: Comment[] = [
-          {
-            id: '1',
-            prompt_id: promptId,
-            user_id: 'user1',
-            content: 'This prompt has been incredibly helpful during my shifts in the ICU. The structured approach helps me stay focused during high-stress situations.',
-            created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-            updated_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-            username: 'sarah_icu_rn',
-            full_name: 'Sarah Johnson',
-            specialty: 'ICU',
-          },
-          {
-            id: '2',
-            prompt_id: promptId,
-            user_id: 'user2',
-            content: 'I\'ve been using this with my nursing students to help them develop critical thinking skills. Great resource!',
-            created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-            updated_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-            username: 'prof_nursing',
-            full_name: 'Professor Williams',
-            specialty: 'Education',
-          },
-          {
-            id: '3',
-            prompt_id: promptId,
-            user_id: 'user3',
-            content: 'Would love to see a version of this adapted for pediatric settings. The core concepts are solid though!',
-            created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-            updated_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
-            username: 'peds_nurse_amy',
-            full_name: 'Amy Chen',
-            specialty: 'Pediatrics',
-          },
-        ];
+        try {
+          const storedComments = await AsyncStorage.getItem(`comments_${promptId}`);
+          if (storedComments) {
+            const parsedComments = JSON.parse(storedComments);
+            setComments(parsedComments);
+            setCommentCount(parsedComments.length);
+          } else {
+            // Default mock comments if none exist
+            const mockComments: Comment[] = [
+              {
+                id: '1',
+                prompt_id: promptId,
+                user_id: 'user1',
+                content: 'This prompt has been incredibly helpful during my shifts in the ICU. The structured approach helps me stay focused during high-stress situations.',
+                created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+                updated_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
+                username: 'sarah_icu_rn',
+                full_name: 'Sarah Johnson',
+                specialty: 'ICU',
+              },
+              {
+                id: '2',
+                prompt_id: promptId,
+                user_id: 'user2',
+                content: 'I\'ve been using this with my nursing students to help them develop critical thinking skills. Great resource!',
+                created_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+                updated_at: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+                username: 'prof_nursing',
+                full_name: 'Professor Williams',
+                specialty: 'Education',
+              },
+              {
+                id: '3',
+                prompt_id: promptId,
+                user_id: 'user3',
+                content: 'Would love to see a version of this adapted for pediatric settings. The core concepts are solid though!',
+                created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+                updated_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+                username: 'peds_nurse_amy',
+                full_name: 'Amy Chen',
+                specialty: 'Pediatrics',
+              },
+            ];
+            
+            setComments(mockComments);
+            setCommentCount(mockComments.length);
+            await AsyncStorage.setItem(`comments_${promptId}`, JSON.stringify(mockComments));
+          }
+        } catch (err) {
+          console.error('Error with local storage for comments:', err);
+          setComments([]);
+          setCommentCount(0);
+        }
         
-        setTimeout(() => {
-          setComments(mockComments);
-          setCommentCount(mockComments.length);
-          setLoading(false);
-        }, 500);
+        setLoading(false);
         return;
       }
 
@@ -134,8 +149,16 @@ export function useComments(promptId?: string) {
           specialty: 'General',
         };
         
-        setComments(prev => [newComment, ...prev]);
-        setCommentCount(prev => prev + 1);
+        const updatedComments = [newComment, ...comments];
+        setComments(updatedComments);
+        setCommentCount(updatedComments.length);
+        
+        try {
+          await AsyncStorage.setItem(`comments_${promptId}`, JSON.stringify(updatedComments));
+        } catch (err) {
+          console.error('Error saving comments to storage:', err);
+        }
+        
         return newComment;
       }
 
@@ -185,6 +208,13 @@ export function useComments(promptId?: string) {
         );
         
         setComments(updatedComments);
+        
+        try {
+          await AsyncStorage.setItem(`comments_${promptId}`, JSON.stringify(updatedComments));
+        } catch (err) {
+          console.error('Error saving comments to storage:', err);
+        }
+        
         const updatedComment = updatedComments.find(c => c.id === commentId);
         return updatedComment || null;
       }
@@ -229,8 +259,16 @@ export function useComments(promptId?: string) {
 
       if (!isSupabaseConfigured) {
         // Mock deleting comment for demo
-        setComments(prev => prev.filter(comment => comment.id !== commentId));
-        setCommentCount(prev => Math.max(0, prev - 1));
+        const updatedComments = comments.filter(comment => comment.id !== commentId);
+        setComments(updatedComments);
+        setCommentCount(updatedComments.length);
+        
+        try {
+          await AsyncStorage.setItem(`comments_${promptId}`, JSON.stringify(updatedComments));
+        } catch (err) {
+          console.error('Error saving comments to storage:', err);
+        }
+        
         return true;
       }
 
@@ -261,10 +299,6 @@ export function useComments(promptId?: string) {
     return comments.some(comment => comment.id === commentId && comment.user_id === user.id);
   };
 
-  const clearError = () => {
-    setError(null);
-  };
-
   return {
     comments,
     commentCount,
@@ -274,7 +308,6 @@ export function useComments(promptId?: string) {
     updateComment,
     deleteComment,
     isUserComment,
-    clearError,
     refresh: loadComments,
   };
 }
