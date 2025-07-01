@@ -23,7 +23,7 @@ import {
   Sparkles
 } from 'lucide-react-native';
 import { fetchPrompts, PromptWithUser } from '@/lib/fetchPrompts';
-import { CATEGORIES } from './categories';
+import { CATEGORIES } from '@/lib/categories';
 
 const { width: screenWidth } = Dimensions.get('window');
 
