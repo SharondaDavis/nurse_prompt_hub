@@ -60,6 +60,15 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="async-demo"
+        options={{
+          title: 'Async Demo',
+          tabBarIcon: ({ size, color }) => (
+            <Ionicons name="sync" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="shadow-demo"
         options={{
           title: 'Shadows',
