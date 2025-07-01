@@ -13,16 +13,22 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Mail, Eye, EyeOff, Stethoscope } from "lucide-react-native";
+import { Mail, Eye, EyeOff, Stethoscope, CheckCircle, AlertCircle } from "lucide-react-native";
 
 export default function LoginScreen() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [username, setUsername] = useState("");
+  const [specialty, setSpecialty] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [pendingEmail, setPendingEmail] = useState("");
 
   // Check if Supabase is properly configured
   const isSupabaseConfigured = 
@@ -30,6 +36,37 @@ export default function LoginScreen() {
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY &&
     process.env.EXPO_PUBLIC_SUPABASE_URL !== 'https://your-project-id.supabase.co' &&
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY !== 'your-anon-key-here';
+
+  const validateForm = () => {
+    if (!email || !password) {
+      Alert.alert("Missing Information", "Please enter both email and password.");
+      return false;
+    }
+
+    if (password.length < 6) {
+      Alert.alert("Password Too Short", "Password must be at least 6 characters long.");
+      return false;
+    }
+
+    if (isSignUp) {
+      if (!fullName || !username || !specialty) {
+        Alert.alert("Missing Information", "Please fill in all required fields.");
+        return false;
+      }
+
+      if (password !== confirmPassword) {
+        Alert.alert("Password Mismatch", "Passwords do not match.");
+        return false;
+      }
+
+      if (username.length < 3) {
+        Alert.alert("Username Too Short", "Username must be at least 3 characters long.");
+        return false;
+      }
+    }
+
+    return true;
+  };
 
   const handleSupabaseError = (error: any) => {
     console.error('Supabase error:', error);
@@ -47,10 +84,18 @@ export default function LoginScreen() {
       Alert.alert(
         'Email Not Verified', 
         'Please check your email and click the verification link before signing in.',
-        [{ text: 'OK', style: 'default' }]
+        [
+          { text: 'Resend Email', onPress: () => resendConfirmation() },
+          { text: 'OK', style: 'default' }
+        ]
       );
     } else if (error.message?.includes('Invalid login credentials')) {
       Alert.alert('Invalid Credentials', 'Please check your email and password and try again.');
+    } else if (error.message?.includes('User already registered')) {
+      Alert.alert('Account Exists', 'An account with this email already exists. Please sign in instead.');
+      setIsSignUp(false);
+    } else if (error.message?.includes('Signup is disabled')) {
+      Alert.alert('Signup Disabled', 'New user registration is currently disabled. Please contact support.');
     } else {
       Alert.alert('Authentication Error', error.message || 'An unexpected error occurred. Please try again.');
     }
@@ -64,16 +109,15 @@ export default function LoginScreen() {
     );
   };
 
-  const handleAuth = async () => {
-    if (!email || !password) {
-      Alert.alert("Missing Information", "Please enter both email and password.");
-      return;
+  const getRedirectUrl = () => {
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}/auth/callback`;
     }
+    return `${process.env.EXPO_PUBLIC_SITE_URL || 'http://localhost:8081'}/auth/callback`;
+  };
 
-    if (password.length < 6) {
-      Alert.alert("Password Too Short", "Password must be at least 6 characters long.");
-      return;
-    }
+  const handleAuth = async () => {
+    if (!validateForm()) return;
 
     setIsLoading(true);
 
@@ -92,19 +136,23 @@ export default function LoginScreen() {
       }
 
       if (isSignUp) {
-        // Get the current URL for redirect
-        const currentUrl = typeof window !== 'undefined' ? window.location.origin : 'https://nurse-prompt-hub.vercel.app';
+        console.log('Starting signup process...');
         
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: email.trim().toLowerCase(),
           password,
           options: {
-            emailRedirectTo: `${currentUrl}/auth/callback`,
+            emailRedirectTo: getRedirectUrl(),
             data: {
+              full_name: fullName.trim(),
+              username: username.trim().toLowerCase(),
+              specialty: specialty.trim(),
               email_confirm: true
             }
           },
         });
+
+        console.log('Signup response:', { data, error });
 
         if (error) {
           handleSupabaseError(error);
@@ -112,18 +160,28 @@ export default function LoginScreen() {
         }
 
         if (data.user) {
+          setPendingEmail(email);
           setEmailSent(true);
-          Alert.alert(
-            "Check Your Email! 📧",
-            `We've sent a verification link to ${email}. Please check your email (including spam folder) and click the link to verify your account.`,
-            [{ text: 'OK' }]
-          );
+          
+          // Clear form
+          setEmail("");
+          setPassword("");
+          setConfirmPassword("");
+          setFullName("");
+          setUsername("");
+          setSpecialty("");
+          
+          console.log('Signup successful, email sent to:', email);
         }
       } else {
+        console.log('Starting signin process...');
+        
         const { data, error } = await supabase.auth.signInWithPassword({
-          email,
+          email: email.trim().toLowerCase(),
           password,
         });
+
+        console.log('Signin response:', { data, error });
 
         if (error) {
           handleSupabaseError(error);
@@ -143,6 +201,7 @@ export default function LoginScreen() {
             return;
           }
 
+          console.log('Signin successful');
           Alert.alert("Welcome Back!", "You're now signed in.");
           router.replace('/(tabs)');
         }
@@ -156,34 +215,93 @@ export default function LoginScreen() {
   };
 
   const resendConfirmation = async () => {
-    if (!email) {
+    const emailToResend = pendingEmail || email;
+    
+    if (!emailToResend) {
       Alert.alert('Error', 'Please enter your email address first.');
       return;
     }
 
     try {
       setIsLoading(true);
-      const currentUrl = typeof window !== 'undefined' ? window.location.origin : 'https://nurse-prompt-hub.vercel.app';
+      console.log('Resending confirmation email to:', emailToResend);
       
       const { error } = await supabase.auth.resend({
         type: 'signup',
-        email: email,
+        email: emailToResend.trim().toLowerCase(),
         options: {
-          emailRedirectTo: `${currentUrl}/auth/callback`
+          emailRedirectTo: getRedirectUrl()
         }
       });
 
       if (error) {
+        console.error('Resend error:', error);
         handleSupabaseError(error);
       } else {
         Alert.alert('Email Sent!', 'A new verification email has been sent to your inbox.');
       }
     } catch (err: any) {
+      console.error('Resend error:', err);
       handleSupabaseError(err);
     } finally {
       setIsLoading(false);
     }
   };
+
+  // Email sent confirmation screen
+  if (emailSent) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ScrollView contentContainerStyle={styles.inner}>
+          <View style={styles.emailSentContainer}>
+            <View style={styles.successIcon}>
+              <CheckCircle size={64} color="#10B981" />
+            </View>
+            
+            <Text style={styles.emailSentTitle}>Check Your Email!</Text>
+            <Text style={styles.emailSentSubtitle}>
+              We've sent a verification link to:
+            </Text>
+            <Text style={styles.emailAddress}>{pendingEmail}</Text>
+            
+            <View style={styles.instructionsContainer}>
+              <Text style={styles.instructionsTitle}>Next steps:</Text>
+              <Text style={styles.instructionText}>
+                1. Check your email inbox (and spam folder)
+              </Text>
+              <Text style={styles.instructionText}>
+                2. Click the "Confirm Email" link
+              </Text>
+              <Text style={styles.instructionText}>
+                3. You'll be redirected back to sign in
+              </Text>
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.resendButton} 
+              onPress={resendConfirmation}
+              disabled={isLoading}
+            >
+              <Text style={styles.resendButtonText}>
+                {isLoading ? 'Sending...' : 'Resend Email'}
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.backButton} 
+              onPress={() => {
+                setEmailSent(false);
+                setPendingEmail("");
+                setIsSignUp(false);
+              }}
+            >
+              <Text style={styles.backButtonText}>Back to Sign In</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -205,6 +323,43 @@ export default function LoginScreen() {
 
           {/* Form */}
           <View style={styles.form}>
+            {isSignUp && (
+              <>
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    style={styles.input}
+                    value={fullName}
+                    onChangeText={setFullName}
+                    placeholder="Full Name *"
+                    autoCapitalize="words"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    style={styles.input}
+                    value={username}
+                    onChangeText={setUsername}
+                    placeholder="Username *"
+                    autoCapitalize="none"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                </View>
+
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    style={styles.input}
+                    value={specialty}
+                    onChangeText={setSpecialty}
+                    placeholder="Specialty (e.g., ICU, ER, Med-Surg) *"
+                    autoCapitalize="words"
+                    placeholderTextColor="#9CA3AF"
+                  />
+                </View>
+              </>
+            )}
+
             <View style={styles.inputContainer}>
               <Mail size={20} color="#6B7280" style={styles.inputIcon} />
               <TextInput
@@ -242,6 +397,29 @@ export default function LoginScreen() {
             </View>
 
             {isSignUp && (
+              <View style={styles.inputContainer}>
+                <TouchableOpacity
+                  style={styles.passwordToggle}
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff size={20} color="#6B7280" />
+                  ) : (
+                    <Eye size={20} color="#6B7280" />
+                  )}
+                </TouchableOpacity>
+                <TextInput
+                  style={[styles.input, styles.passwordInput]}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  placeholder="Confirm Password"
+                  secureTextEntry={!showConfirmPassword}
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+            )}
+
+            {isSignUp && (
               <View style={styles.passwordRequirements}>
                 <Text style={styles.requirementsText}>
                   Password must be at least 6 characters long
@@ -268,10 +446,11 @@ export default function LoginScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Demo Mode Option */}
+          {/* Configuration Status */}
           {!isSupabaseConfigured && (
-            <View style={styles.demoSection}>
-              <Text style={styles.demoText}>
+            <View style={styles.configSection}>
+              <AlertCircle size={20} color="#F59E0B" />
+              <Text style={styles.configText}>
                 Supabase not configured - Demo mode available
               </Text>
               <TouchableOpacity style={styles.demoButton} onPress={handleDemoMode}>
@@ -280,24 +459,27 @@ export default function LoginScreen() {
             </View>
           )}
 
+          {/* Setup Instructions */}
+          {!isSupabaseConfigured && (
+            <View style={styles.setupInstructions}>
+              <Text style={styles.setupTitle}>To enable authentication:</Text>
+              <Text style={styles.setupText}>
+                1. Create a Supabase project at supabase.com{'\n'}
+                2. Copy your Project URL and anon key{'\n'}
+                3. Update the .env file with your credentials{'\n'}
+                4. Restart the development server
+              </Text>
+            </View>
+          )}
+
           {/* Email Verification Notice */}
-          {isSignUp && (
+          {isSignUp && isSupabaseConfigured && (
             <View style={styles.emailNotice}>
               <Text style={styles.emailNoticeText}>
                 📧 You'll receive a verification email after signing up. Please check your inbox and spam folder.
               </Text>
             </View>
           )}
-
-          {/* Troubleshooting */}
-          <View style={styles.troubleshooting}>
-            <Text style={styles.troubleshootingTitle}>Having trouble?</Text>
-            <Text style={styles.troubleshootingText}>
-              • Check your spam folder for verification emails{'\n'}
-              • Ensure your email address is correct{'\n'}
-              • Try Demo Mode if authentication isn't working
-            </Text>
-          </View>
         </KeyboardAvoidingView>
       </ScrollView>
     </SafeAreaView>
@@ -411,29 +593,49 @@ const styles = StyleSheet.create({
     marginTop: 16,
     fontWeight: '500',
   },
-  demoSection: {
+  configSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#FEF3C7',
     padding: 16,
     borderRadius: 12,
     marginBottom: 16,
-    alignItems: 'center',
+    gap: 8,
   },
-  demoText: {
+  configText: {
+    flex: 1,
     fontSize: 14,
     color: '#92400E',
-    textAlign: 'center',
-    marginBottom: 12,
   },
   demoButton: {
     backgroundColor: '#F59E0B',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
   },
   demoButtonText: {
     color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  setupInstructions: {
+    backgroundColor: '#F9FAFB',
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 16,
+  },
+  setupTitle: {
     fontSize: 14,
     fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  setupText: {
+    fontSize: 12,
+    color: '#6B7280',
+    lineHeight: 18,
   },
   emailNotice: {
     backgroundColor: '#EFF6FF',
@@ -447,22 +649,72 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 16,
   },
-  troubleshooting: {
-    backgroundColor: '#F9FAFB',
-    padding: 16,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+  // Email sent confirmation styles
+  emailSentContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
   },
-  troubleshootingTitle: {
-    fontSize: 14,
+  successIcon: {
+    marginBottom: 24,
+  },
+  emailSentTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emailSentSubtitle: {
+    fontSize: 16,
+    color: '#6B7280',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  emailAddress: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#10B981',
+    marginBottom: 32,
+    textAlign: 'center',
+  },
+  instructionsContainer: {
+    backgroundColor: '#F9FAFB',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 32,
+    width: '100%',
+  },
+  instructionsTitle: {
+    fontSize: 16,
     fontWeight: '600',
     color: '#374151',
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  troubleshootingText: {
-    fontSize: 12,
+  instructionText: {
+    fontSize: 14,
     color: '#6B7280',
-    lineHeight: 18,
+    marginBottom: 8,
+    lineHeight: 20,
+  },
+  resendButton: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  resendButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  backButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  backButtonText: {
+    color: '#6366F1',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });

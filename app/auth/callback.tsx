@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabaseClient';
-import { CircleCheck as CheckCircle, Circle as XCircle, Stethoscope, ArrowRight } from 'lucide-react-native';
+import { CheckCircle, XCircle, Stethoscope, ArrowRight, AlertTriangle } from 'lucide-react-native';
 
 export default function AuthCallback() {
   const router = useRouter();
@@ -16,6 +16,8 @@ export default function AuthCallback() {
 
   const handleAuthCallback = async () => {
     try {
+      console.log('Auth callback params:', params);
+      
       // Check if we have the necessary parameters
       const { access_token, refresh_token, type, error, error_description } = params;
 
@@ -28,6 +30,8 @@ export default function AuthCallback() {
       }
 
       if (type === 'signup' && access_token && refresh_token) {
+        console.log('Processing signup confirmation...');
+        
         // Set the session with the tokens
         const { data, error: sessionError } = await supabase.auth.setSession({
           access_token: access_token as string,
@@ -42,6 +46,8 @@ export default function AuthCallback() {
         }
 
         if (data.user) {
+          console.log('User session established:', data.user.email);
+          
           // Create user profile if it doesn't exist
           const { error: profileError } = await supabase
             .from('user_profiles')
@@ -77,10 +83,19 @@ export default function AuthCallback() {
         setTimeout(() => {
           router.replace('/reset-password');
         }, 2000);
+      } else if (type === 'invite') {
+        // Handle team invitations
+        setStatus('success');
+        setMessage('Invitation accepted. Please complete your account setup.');
+        
+        setTimeout(() => {
+          router.replace('/complete-signup');
+        }, 2000);
       } else {
         // Invalid or missing parameters
+        console.error('Invalid callback parameters:', params);
         setStatus('error');
-        setMessage('Invalid verification link. Please try signing up again.');
+        setMessage('Invalid verification link. Please try signing up again or check that you clicked the correct link.');
       }
     } catch (error) {
       console.error('Auth callback error:', error);
@@ -204,12 +219,14 @@ export default function AuthCallback() {
         {status === 'error' && (
           <View style={styles.errorContent}>
             <View style={styles.errorCard}>
+              <AlertTriangle size={24} color="#F59E0B" />
               <Text style={styles.errorTitle}>What can you do?</Text>
               <Text style={styles.errorText}>
                 • Check if the verification link has expired{'\n'}
                 • Try signing up again with a valid email{'\n'}
                 • Make sure you clicked the correct link from your email{'\n'}
-                • Check your spam folder for the verification email
+                • Check your spam folder for the verification email{'\n'}
+                • Contact support if the problem persists
               </Text>
             </View>
 
@@ -378,17 +395,20 @@ const styles = StyleSheet.create({
     width: '100%',
     borderWidth: 1,
     borderColor: '#FECACA',
+    alignItems: 'center',
   },
   errorTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#1F2937',
     marginBottom: 12,
+    marginTop: 12,
   },
   errorText: {
     fontSize: 16,
     color: '#6B7280',
     lineHeight: 24,
+    textAlign: 'center',
   },
   retryButton: {
     backgroundColor: '#EF4444',
