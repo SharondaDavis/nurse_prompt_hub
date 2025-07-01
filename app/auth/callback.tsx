@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabaseClient';
-import { CircleCheck as CheckCircle, Circle as XCircle, Stethoscope, ArrowRight } from 'lucide-react-native';
+import { CheckCircle, XCircle, Stethoscope, ArrowRight } from 'lucide-react-native';
 
 export default function AuthCallback() {
   const router = useRouter();
@@ -17,19 +17,27 @@ export default function AuthCallback() {
   const handleAuthCallback = async () => {
     try {
       // Check if we have the necessary parameters
-      const { access_token, refresh_token, type } = params;
+      const { access_token, refresh_token, type, error, error_description } = params;
+
+      // Handle error cases first
+      if (error) {
+        console.error('Auth callback error:', error, error_description);
+        setStatus('error');
+        setMessage(error_description as string || 'Authentication failed. Please try again.');
+        return;
+      }
 
       if (type === 'signup' && access_token && refresh_token) {
         // Set the session with the tokens
-        const { data, error } = await supabase.auth.setSession({
+        const { data, error: sessionError } = await supabase.auth.setSession({
           access_token: access_token as string,
           refresh_token: refresh_token as string,
         });
 
-        if (error) {
-          console.error('Error setting session:', error);
+        if (sessionError) {
+          console.error('Error setting session:', sessionError);
           setStatus('error');
-          setMessage('Failed to verify email. Please try again.');
+          setMessage('Failed to verify email. Please try signing in again.');
           return;
         }
 
@@ -41,7 +49,7 @@ export default function AuthCallback() {
               id: data.user.id,
               username: data.user.user_metadata?.username || data.user.email?.split('@')[0] || 'new_user',
               full_name: data.user.user_metadata?.full_name || '',
-              specialty: data.user.user_metadata?.specialty || '',
+              specialty: data.user.user_metadata?.specialty || 'General Practice',
               years_experience: data.user.user_metadata?.years_experience || 0,
               bio: '',
             }, {
@@ -50,6 +58,7 @@ export default function AuthCallback() {
 
           if (profileError) {
             console.error('Error creating profile:', profileError);
+            // Don't fail the whole process for profile creation errors
           }
 
           setStatus('success');
@@ -60,7 +69,16 @@ export default function AuthCallback() {
             router.replace('/(tabs)');
           }, 3000);
         }
+      } else if (type === 'recovery') {
+        // Handle password recovery
+        setStatus('success');
+        setMessage('Password recovery link verified. You can now reset your password.');
+        
+        setTimeout(() => {
+          router.replace('/reset-password');
+        }, 2000);
       } else {
+        // Invalid or missing parameters
         setStatus('error');
         setMessage('Invalid verification link. Please try signing up again.');
       }
@@ -76,7 +94,7 @@ export default function AuthCallback() {
   };
 
   const handleRetry = () => {
-    router.replace('/');
+    router.replace('/login');
   };
 
   const getStatusIcon = () => {
@@ -190,7 +208,8 @@ export default function AuthCallback() {
               <Text style={styles.errorText}>
                 • Check if the verification link has expired{'\n'}
                 • Try signing up again with a valid email{'\n'}
-                • Contact support if the problem persists
+                • Make sure you clicked the correct link from your email{'\n'}
+                • Check your spam folder for the verification email
               </Text>
             </View>
 
@@ -199,7 +218,7 @@ export default function AuthCallback() {
               onPress={handleRetry}
               activeOpacity={0.9}
             >
-              <Text style={styles.retryButtonText}>Back to Sign Up</Text>
+              <Text style={styles.retryButtonText}>Back to Sign In</Text>
             </TouchableOpacity>
           </View>
         )}
