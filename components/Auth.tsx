@@ -9,9 +9,10 @@ import {
   ScrollView,
   KeyboardAvoidingView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { supabase } from '@/lib/supabaseClient';
-import { Stethoscope, X, Mail, CircleCheck as CheckCircle, Eye, EyeOff } from 'lucide-react-native';
+import { Stethoscope, X, Mail, CircleCheck as CheckCircle, Eye, EyeOff, AlertCircle } from 'lucide-react-native';
 
 interface AuthProps {
   onAuthSuccess?: () => void;
@@ -22,6 +23,7 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
   const [specialty, setSpecialty] = useState('');
@@ -30,6 +32,7 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
   const [showEmailSent, setShowEmailSent] = useState(false);
   const [pendingEmail, setPendingEmail] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Check if Supabase is properly configured
   const isSupabaseConfigured = 
@@ -62,6 +65,44 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
     }
   };
 
+  const validateForm = () => {
+    if (!email || !password) {
+      Alert.alert("Missing Information", "Please enter both email and password.");
+      return false;
+    }
+
+    if (password.length < 6) {
+      Alert.alert("Password Too Short", "Password must be at least 6 characters long.");
+      return false;
+    }
+
+    if (isSignUp) {
+      if (!username || !fullName || !specialty) {
+        Alert.alert("Missing Information", "Please fill in all required fields.");
+        return false;
+      }
+
+      if (password !== confirmPassword) {
+        Alert.alert("Password Mismatch", "Passwords do not match.");
+        return false;
+      }
+
+      if (username.length < 3) {
+        Alert.alert("Username Too Short", "Username must be at least 3 characters long.");
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const getRedirectUrl = () => {
+    if (typeof window !== 'undefined') {
+      return `${window.location.origin}/auth/callback`;
+    }
+    return `${process.env.EXPO_PUBLIC_SITE_URL || 'http://localhost:8081'}/auth/callback`;
+  };
+
   const handleSignIn = async () => {
     if (!isSupabaseConfigured) {
       // Demo mode - simulate successful sign in
@@ -73,8 +114,7 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
       return;
     }
 
-    if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+    if (!validateForm()) {
       return;
     }
 
@@ -113,25 +153,19 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
   const handleSignUp = async () => {
     if (!isSupabaseConfigured) {
       // Demo mode - simulate successful sign up
-      if (!email || !password || !username || !fullName || !specialty || !yearsExperience) {
-        Alert.alert('Error', 'Please fill in all fields');
+      if (!validateForm()) {
         return;
       }
       setIsLoading(true);
       setTimeout(() => {
         setIsLoading(false);
-        onAuthSuccess?.();
+        setPendingEmail(email);
+        setShowEmailSent(true);
       }, 1000);
       return;
     }
 
-    if (!email || !password || !username || !fullName || !specialty || !yearsExperience) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
-
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters long');
+    if (!validateForm()) {
       return;
     }
 
@@ -151,7 +185,7 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
             username,
             full_name: fullName,
             specialty,
-            years_experience: parseInt(yearsExperience),
+            years_experience: parseInt(yearsExperience || '0'),
           }
         }
       });
@@ -214,6 +248,10 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
     setShowPassword(!showPassword);
   };
 
+  const toggleConfirmPasswordVisibility = () => {
+    setShowConfirmPassword(!showConfirmPassword);
+  };
+
   // Email confirmation success screen
   if (showEmailSent) {
     return (
@@ -272,9 +310,14 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
               onPress={() => resendConfirmation(pendingEmail)}
               disabled={isLoading}
             >
-              <Text style={styles.resendButtonText}>
-                {isLoading ? 'Sending...' : 'Resend Email'}
-              </Text>
+              {isLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <Text style={styles.resendButtonText}>Sending...</Text>
+                </View>
+              ) : (
+                <Text style={styles.resendButtonText}>Resend Email</Text>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -335,9 +378,14 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
               onPress={handleDemoAccess}
               disabled={isLoading}
             >
-              <Text style={styles.buttonText}>
-                {isLoading ? 'Loading...' : 'Enter Demo Mode'}
-              </Text>
+              {isLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <Text style={styles.buttonText}>Loading...</Text>
+                </View>
+              ) : (
+                <Text style={styles.buttonText}>Enter Demo Mode</Text>
+              )}
             </TouchableOpacity>
             
             <Text style={styles.demoDescription}>
@@ -347,9 +395,47 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
           </View>
         ) : (
           <View style={styles.form}>
+            {isSignUp && (
+              <>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Full Name *"
+                  value={fullName}
+                  onChangeText={setFullName}
+                  placeholderTextColor="#9CA3AF"
+                />
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="Username *"
+                  value={username}
+                  onChangeText={setUsername}
+                  autoCapitalize="none"
+                  placeholderTextColor="#9CA3AF"
+                />
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="Specialty (e.g., ICU, ER, Med-Surg) *"
+                  value={specialty}
+                  onChangeText={setSpecialty}
+                  placeholderTextColor="#9CA3AF"
+                />
+
+                <TextInput
+                  style={styles.input}
+                  placeholder="Years of Experience"
+                  value={yearsExperience}
+                  onChangeText={setYearsExperience}
+                  keyboardType="numeric"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </>
+            )}
+
             <TextInput
               style={styles.input}
-              placeholder="Email Address"
+              placeholder="Email Address *"
               value={email}
               onChangeText={setEmail}
               keyboardType="email-address"
@@ -360,7 +446,7 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
             <View style={styles.passwordContainer}>
               <TextInput
                 style={styles.passwordInput}
-                placeholder="Password"
+                placeholder="Password *"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -379,57 +465,53 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
             </View>
 
             {isSignUp && (
-              <>
+              <View style={styles.passwordContainer}>
                 <TextInput
-                  style={styles.input}
-                  placeholder="Username (e.g., sarah_icu_rn)"
-                  value={username}
-                  onChangeText={setUsername}
-                  autoCapitalize="none"
+                  style={styles.passwordInput}
+                  placeholder="Confirm Password *"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
                   placeholderTextColor="#9CA3AF"
                 />
+                <TouchableOpacity 
+                  style={styles.passwordToggle}
+                  onPress={toggleConfirmPasswordVisibility}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff size={20} color="#6B7280" />
+                  ) : (
+                    <Eye size={20} color="#6B7280" />
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
 
-                <TextInput
-                  style={styles.input}
-                  placeholder="Full Name"
-                  value={fullName}
-                  onChangeText={setFullName}
-                  placeholderTextColor="#9CA3AF"
-                />
-
-                <TextInput
-                  style={styles.input}
-                  placeholder="Specialty (e.g., ICU, ER, Pediatrics)"
-                  value={specialty}
-                  onChangeText={setSpecialty}
-                  placeholderTextColor="#9CA3AF"
-                />
-
-                <TextInput
-                  style={styles.input}
-                  placeholder="Years of Experience"
-                  value={yearsExperience}
-                  onChangeText={setYearsExperience}
-                  keyboardType="numeric"
-                  placeholderTextColor="#9CA3AF"
-                />
-
-                <View style={styles.passwordRequirements}>
-                  <Text style={styles.requirementsText}>
-                    Password must be at least 6 characters long
-                  </Text>
-                </View>
-              </>
+            {isSignUp && (
+              <View style={styles.passwordRequirements}>
+                <Text style={styles.requirementsText}>
+                  Password must be at least 6 characters long
+                </Text>
+              </View>
             )}
 
             <TouchableOpacity
-              style={[styles.button, styles.primaryButton]}
+              style={[styles.button, styles.primaryButton, isLoading && styles.buttonDisabled]}
               onPress={isSignUp ? handleSignUp : handleSignIn}
               disabled={isLoading}
             >
-              <Text style={styles.buttonText}>
-                {isLoading ? 'Loading...' : isSignUp ? 'Sign Up' : 'Sign In'}
-              </Text>
+              {isLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <Text style={styles.buttonText}>
+                    {isSignUp ? 'Creating Account...' : 'Signing In...'}
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.buttonText}>
+                  {isSignUp ? "Sign Up" : "Sign In"}
+                </Text>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -567,15 +649,19 @@ const styles = StyleSheet.create({
     borderColor: '#E5E7EB',
     borderRadius: 12,
     marginBottom: 16,
+    position: 'relative',
   },
   passwordInput: {
     flex: 1,
     padding: 16,
     fontSize: 16,
     color: '#1F2937',
+    paddingRight: 50,
   },
   passwordToggle: {
-    padding: 16,
+    position: 'absolute',
+    right: 16,
+    padding: 8,
   },
   passwordRequirements: {
     marginBottom: 16,
@@ -619,11 +705,21 @@ const styles = StyleSheet.create({
   primaryButton: {
     backgroundColor: '#14B8A6',
   },
+  buttonDisabled: {
+    backgroundColor: '#9CA3AF',
+    opacity: 0.7,
+  },
   buttonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   switchButton: {
     alignItems: 'center',

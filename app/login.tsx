@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   View,
+  ActivityIndicator,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { Mail, Eye, EyeOff, Stethoscope, CircleCheck as CheckCircle, CircleAlert as AlertCircle } from "lucide-react-native";
@@ -432,9 +433,16 @@ export default function LoginScreen() {
               onPress={handleAuth}
               disabled={isLoading}
             >
-              <Text style={styles.buttonText}>
-                {isLoading ? 'Please wait...' : (isSignUp ? "Create Account" : "Sign In")}
-              </Text>
+              {isLoading ? (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                  <Text style={styles.buttonText}>Please wait...</Text>
+                </View>
+              ) : (
+                <Text style={styles.buttonText}>
+                  {isSignUp ? "Create Account" : "Sign In"}
+                </Text>
+              )}
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)}>
@@ -585,6 +593,12 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   toggleText: {
     color: "#6366F1",

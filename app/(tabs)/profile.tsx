@@ -94,6 +94,7 @@ export default function ProfileScreen() {
               await signOut();
               router.replace('/login');
             } catch (error) {
+              console.error('Sign out error:', error);
               Alert.alert('Error', 'Failed to sign out. Please try again.');
             } finally {
               setIsSigningOut(false);

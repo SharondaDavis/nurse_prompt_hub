@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabaseClient';
 import { User } from '@supabase/supabase-js';
 import { Database } from '@/types/database';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Alert, Platform } from 'react-native';
 
 type UserProfile = Database['public']['Tables']['user_profiles']['Row'];
 
@@ -30,6 +31,7 @@ export function useUser() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authError, setAuthError] = useState<string | null>(null);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -102,14 +104,17 @@ export function useUser() {
       if (error) {
         console.error('Error fetching profile:', error);
         setProfile(null);
+        setAuthError('Failed to load user profile');
       } else {
         setProfile(data);
+        setAuthError(null);
       }
     } catch (error) {
       if (!mountedRef.current) return;
       
       console.error('Unexpected error fetching profile:', error);
       setProfile(null);
+      setAuthError('An unexpected error occurred');
     } finally {
       if (mountedRef.current) {
         setIsLoading(false);
@@ -161,6 +166,7 @@ export function useUser() {
   const signOut = async () => {
     try {
       setIsLoading(true);
+      setAuthError(null);
       
       // Check if Supabase is properly configured
       const isSupabaseConfigured = 
@@ -195,6 +201,7 @@ export function useUser() {
       
       if (error) {
         console.error('Error signing out:', error);
+        setAuthError(error.message);
         throw error;
       }
       
@@ -217,6 +224,9 @@ export function useUser() {
       return true;
     } catch (error) {
       console.error('Error during sign out:', error);
+      if (Platform.OS !== 'web') {
+        Alert.alert('Sign Out Error', 'Failed to sign out. Please try again.');
+      }
       throw error;
     } finally {
       setIsLoading(false);
@@ -227,6 +237,7 @@ export function useUser() {
     user,
     profile,
     isLoading,
+    authError,
     updateProfile,
     signOut,
   };
