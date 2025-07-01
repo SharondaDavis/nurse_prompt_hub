@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { supabase } from '@/lib/supabaseClient';
-import { Stethoscope, X, Mail, CircleCheck as CheckCircle, Eye, EyeOff, AlertCircle } from 'lucide-react-native';
+import { Stethoscope, X, Mail, CircleCheck as CheckCircle, Eye, EyeOff, CircleAlert as AlertCircle } from 'lucide-react-native';
 
 interface AuthProps {
   onAuthSuccess?: () => void;
