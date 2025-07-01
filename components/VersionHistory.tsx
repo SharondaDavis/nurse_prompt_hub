@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { Platform } from 'react-native';
 import { Clock, User, CircleCheck as CheckCircle, CreditCard as Edit, Eye, ChevronRight, History, FileText } from 'lucide-react-native';
 import { getPromptVersions, PromptVersionWithUser, publishPromptVersion } from '@/lib/promptVersions';
 import { useUser } from '@/hooks/useUser';
