@@ -13,86 +13,65 @@ import {
   Platform,
 } from "react-native";
 
-import { useRouter } from "expo-router";
-
-
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isSignUp, setIsSignUp] = useState(false); // toggle between sign in / sign up
-  const router = useRouter();
+  const [isSignUp, setIsSignUp] = useState(false);
 
-const handleAuth = async () => {
-  if (!email || !password) {
-    Alert.alert("Missing Info", "Please enter both email and password.");
-    return;
-  }
-
-  try {
-  if (isSignUp) {
-  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-    email,
-    password,
-  });
-
-  if (signUpError) throw signUpError;
-
-  // Insert into custom "users" table
-  if (signUpData?.user?.id) {
-    const { error: insertError } = await supabase.from("users").insert([
-      {
-        id: signUpData.user.id, // Your table should have a UUID 'id' column
-        email: email,
-        created_at: new Date(), // Optional
-      },
-    ]);
-
-    if (insertError) {
-      console.warn("User saved to auth but not inserted into users table:", insertError.message);
+  const handleAuth = async () => {
+    if (!email || !password) {
+      Alert.alert("Missing Info", "Please enter both email and password.");
+      return;
     }
-  }
 
-  Alert.alert("Success", "Check your email to confirm your account.");
-}
+    try {
+      if (isSignUp) {
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+        });
 
-    } else {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+        if (signUpError) throw signUpError;
 
-      const user = data.user;
+        if (signUpData?.user?.id) {
+          const { error: insertError } = await supabase.from("users").insert([
+            {
+              id: signUpData.user.id,
+              email: email,
+              created_at: new Date(),
+            },
+          ]);
 
-      if (!user?.email_confirmed_at) {
-        Alert.alert("Email not verified", "Please confirm your email to continue.");
-        return;
+          if (insertError) {
+            console.warn(
+              "User saved to auth but not inserted into users table:",
+              insertError.message
+            );
+          }
+        }
+
+        Alert.alert("Success", "Check your email to confirm your account.");
+      } else {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) throw error;
+
+        Alert.alert("Success", "You're signed in!");
       }
-
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("username")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile || !profile.username) {
-        Alert.alert("Setup Required", "Finish creating your profile.");
-        router.push("/profile-setup");
-        return;
+    } catch (error: any) {
+      if (error.message?.includes("captcha")) {
+        Alert.alert(
+          "CAPTCHA Error",
+          "Disable CAPTCHA in Supabase Auth settings or complete configuration."
+        );
+      } else {
+        Alert.alert("Auth Error", error.message || "Something went wrong.");
       }
-
-      // All good: go to homepage or wherever
-      Alert.alert("Welcome", "You're signed in!");
-      router.push("/");
     }
-  } catch (error: any) {
-    if (error.message?.includes("captcha")) {
-      Alert.alert(
-        "CAPTCHA Error",
-        "Disable reCAPTCHA in Supabase Auth Settings if not configured."
-      );
-    } else {
-      Alert.alert("Auth Error", error.message || "Something went wrong.");
-    }
-  }
-};
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -130,8 +109,8 @@ const handleAuth = async () => {
           <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)}>
             <Text style={styles.toggleText}>
               {isSignUp
-                ? "Already have an account? Sign in here"
-                : "Don't have an account? Sign up now"}
+                ? "Already have an account? Sign in"
+                : "Don't have an account? Sign up"}
             </Text>
           </TouchableOpacity>
         </KeyboardAvoidingView>
