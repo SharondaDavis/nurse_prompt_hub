@@ -13,7 +13,7 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { Mail, Eye, EyeOff, Stethoscope, CheckCircle, AlertCircle } from "lucide-react-native";
+import { Mail, Eye, EyeOff, Stethoscope, CircleCheck as CheckCircle, CircleAlert as AlertCircle } from "lucide-react-native";
 
 export default function LoginScreen() {
   const router = useRouter();
