@@ -192,6 +192,10 @@ export default function SubmitScreen() {
     setShowAuth(false);
   };
 
+  const handleSignIn = () => {
+    router.push('/login');
+  };
+
   const renderFieldError = (field: keyof ValidationErrors) => {
     if (touched[field] && errors[field]) {
       return (
@@ -256,7 +260,7 @@ export default function SubmitScreen() {
             
             <TouchableOpacity 
               style={styles.signInButton}
-              onPress={() => setShowAuth(true)}
+              onPress={handleSignIn}
               activeOpacity={0.9}
             >
               <LogIn size={20} color="#FFFFFF" />
