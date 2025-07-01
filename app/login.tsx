@@ -29,10 +29,32 @@ const handleAuth = async () => {
   }
 
   try {
-    if (isSignUp) {
-      const { error } = await supabase.auth.signUp({ email, password });
-      if (error) throw error;
-      Alert.alert("Success", "Check your email to confirm your account.");
+  if (isSignUp) {
+  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+    email,
+    password,
+  });
+
+  if (signUpError) throw signUpError;
+
+  // Insert into custom "users" table
+  if (signUpData?.user?.id) {
+    const { error: insertError } = await supabase.from("users").insert([
+      {
+        id: signUpData.user.id, // Your table should have a UUID 'id' column
+        email: email,
+        created_at: new Date(), // Optional
+      },
+    ]);
+
+    if (insertError) {
+      console.warn("User saved to auth but not inserted into users table:", insertError.message);
+    }
+  }
+
+  Alert.alert("Success", "Check your email to confirm your account.");
+}
+
     } else {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
