@@ -12,7 +12,6 @@ import {
 } from 'react-native';
 import { supabase } from '@/lib/supabaseClient';
 import { Stethoscope, X, Mail, CircleCheck as CheckCircle, Eye, EyeOff } from 'lucide-react-native';
-import { ReCaptchaV3 } from 'expo-recaptcha-v3';
 
 interface AuthProps {
   onAuthSuccess?: () => void;
@@ -31,7 +30,6 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
   const [showEmailSent, setShowEmailSent] = useState(false);
   const [pendingEmail, setPendingEmail] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
   // Check if Supabase is properly configured
   const isSupabaseConfigured = 
@@ -39,13 +37,6 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY &&
     process.env.EXPO_PUBLIC_SUPABASE_URL !== 'https://your-project-id.supabase.co' &&
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY !== 'your-anon-key-here';
-
-  // reCAPTCHA site key - you'll need to get this from Google reCAPTCHA console
-  const recaptchaSiteKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY || '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'; // Test key
-
-  const handleRecaptchaVerify = (token: string) => {
-    setRecaptchaToken(token);
-  };
 
   const handleSignIn = async () => {
     if (!isSupabaseConfigured) {
@@ -66,19 +57,10 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
     setIsLoading(true);
 
     try {
-      const authOptions: any = {
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
-      };
-
-      // Add reCAPTCHA token if available and on web platform
-      if (Platform.OS === 'web' && recaptchaToken) {
-        authOptions.options = {
-          captchaToken: recaptchaToken,
-        };
-      }
-
-      const { data, error } = await supabase.auth.signInWithPassword(authOptions);
+      });
 
       if (error) {
         if (error.message.includes('Email not confirmed')) {
@@ -90,8 +72,6 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
               { text: 'OK', style: 'default' }
             ]
           );
-        } else if (error.message.includes('captcha')) {
-          Alert.alert('Verification Required', 'Please complete the reCAPTCHA verification and try again.');
         } else {
           Alert.alert('Sign In Failed', error.message);
         }
@@ -148,7 +128,8 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
       // Get the current URL for redirect
       const currentUrl = typeof window !== 'undefined' ? window.location.origin : '';
       
-      const signUpOptions: any = {
+      // Sign up with email confirmation required
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -160,22 +141,10 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
             years_experience: parseInt(yearsExperience),
           }
         }
-      };
-
-      // Add reCAPTCHA token if available and on web platform
-      if (Platform.OS === 'web' && recaptchaToken) {
-        signUpOptions.options.captchaToken = recaptchaToken;
-      }
-
-      // Sign up with email confirmation required
-      const { data, error } = await supabase.auth.signUp(signUpOptions);
+      });
 
       if (error) {
-        if (error.message.includes('captcha')) {
-          Alert.alert('Verification Required', 'Please complete the reCAPTCHA verification and try again.');
-        } else {
-          Alert.alert('Sign Up Failed', error.message);
-        }
+        Alert.alert('Sign Up Failed', error.message);
         setIsLoading(false);
         return;
       }
@@ -361,17 +330,6 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
           </View>
         ) : (
           <View style={styles.form}>
-            {/* reCAPTCHA component for web platform */}
-            {Platform.OS === 'web' && isSupabaseConfigured && (
-              <View style={styles.recaptchaContainer}>
-                <ReCaptchaV3
-                  siteKey={recaptchaSiteKey}
-                  onVerify={handleRecaptchaVerify}
-                  size="invisible"
-                />
-              </View>
-            )}
-
             <TextInput
               style={styles.input}
               placeholder="Email Address"
@@ -476,14 +434,6 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
                 </Text>
               </View>
             )}
-
-            {Platform.OS === 'web' && isSupabaseConfigured && (
-              <View style={styles.recaptchaNote}>
-                <Text style={styles.recaptchaText}>
-                  Protected by reCAPTCHA
-                </Text>
-              </View>
-            )}
           </View>
         )}
 
@@ -575,9 +525,6 @@ const styles = StyleSheet.create({
   form: {
     marginBottom: 32,
   },
-  recaptchaContainer: {
-    marginBottom: 16,
-  },
   input: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -623,15 +570,6 @@ const styles = StyleSheet.create({
   verificationText: {
     fontSize: 14,
     color: '#1E40AF',
-    textAlign: 'center',
-  },
-  recaptchaNote: {
-    marginTop: 16,
-    alignItems: 'center',
-  },
-  recaptchaText: {
-    fontSize: 12,
-    color: '#6B7280',
     textAlign: 'center',
   },
   button: {
