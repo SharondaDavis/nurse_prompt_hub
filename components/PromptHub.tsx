@@ -11,22 +11,7 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
-import { 
-  Search, 
-  Filter, 
-  Tag, 
-  Heart, 
-  Clock, 
-  Edit, 
-  Copy, 
-  History,
-  Plus,
-  ChevronRight,
-  TrendingUp,
-  Sparkles,
-  FileText,
-  User
-} from 'lucide-react-native';
+import { Search, Filter, Tag, Heart, Clock, CreditCard as Edit, Copy, History, Plus, ChevronRight, TrendingUp, Sparkles, FileText, User } from 'lucide-react-native';
 import { AdvancedSearchBar } from './AdvancedSearchBar';
 import { PromptEditor } from './PromptEditor';
 import { VersionHistory } from './VersionHistory';

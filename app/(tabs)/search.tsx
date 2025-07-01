@@ -12,7 +12,7 @@ import { PromptHub } from '@/components/PromptHub';
 import { PromptDetail } from '@/components/PromptDetail';
 import { fetchPromptById, PromptWithUser } from '@/lib/fetchPrompts';
 import { getPromptVersion, PromptVersionWithUser } from '@/lib/promptVersions';
-import { Edit, ArrowLeft } from 'lucide-react-native';
+import { CreditCard as Edit, ArrowLeft } from 'lucide-react-native';
 import { PromptEditor } from '@/components/PromptEditor';
 import { useUser } from '@/hooks/useUser';
 

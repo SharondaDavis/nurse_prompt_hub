@@ -12,18 +12,7 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native';
-import { 
-  X, 
-  Save, 
-  Tag, 
-  Plus, 
-  Eye, 
-  ArrowLeft,
-  CheckSquare,
-  Clock,
-  FileText,
-  History
-} from 'lucide-react-native';
+import { X, Save, Tag, Plus, Eye, ArrowLeft, SquareCheck as CheckSquare, Clock, FileText, History } from 'lucide-react-native';
 import { CATEGORIES } from '@/lib/categories';
 import { PromptWithUser } from '@/lib/fetchPrompts';
 import { createPromptVersion, publishPromptVersion } from '@/lib/promptVersions';

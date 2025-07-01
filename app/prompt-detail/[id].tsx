@@ -11,16 +11,7 @@ import {
   Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { 
-  ArrowLeft, 
-  Edit, 
-  History,
-  Heart,
-  Clock,
-  User,
-  Building2,
-  MessageSquare
-} from 'lucide-react-native';
+import { ArrowLeft, CreditCard as Edit, History, Heart, Clock, User, Building2, MessageSquare } from 'lucide-react-native';
 import { fetchPromptById, PromptWithUser } from '@/lib/fetchPrompts';
 import { getPromptVersion, PromptVersionWithUser } from '@/lib/promptVersions';
 import { useVoting } from '@/hooks/useVoting';
