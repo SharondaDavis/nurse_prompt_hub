@@ -7,50 +7,59 @@ import {
   TouchableOpacity,
   SafeAreaView,
   Alert,
-  Share,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { 
-  X, 
-  ThumbsUp, 
-  Share2, 
-  Copy, 
+  ArrowLeft, 
+  Edit, 
+  History,
   Heart,
   Clock,
   User,
   Building2,
-  ArrowLeft,
   MessageSquare
 } from 'lucide-react-native';
-import * as Clipboard from 'expo-clipboard';
 import { fetchPromptById, PromptWithUser } from '@/lib/fetchPrompts';
+import { getPromptVersion, PromptVersionWithUser } from '@/lib/promptVersions';
 import { useVoting } from '@/hooks/useVoting';
 import { useFavorites } from '@/hooks/useFavorites';
 import { useUser } from '@/hooks/useUser';
 import { useComments } from '@/hooks/useComments';
 import { UserAvatar } from '@/components/UserAvatar';
+import { PromptEditor } from '@/components/PromptEditor';
+import { VersionHistory } from '@/components/VersionHistory';
 
 export default function PromptDetailScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams();
+  const { id, version } = useLocalSearchParams();
   const { user } = useUser();
   const { hasVoted, toggleVote, getVoteCount } = useVoting();
   const { isFavorited, addFavorite, removeFavorite } = useFavorites();
   const { commentCount } = useComments(id as string);
   
   const [prompt, setPrompt] = useState<PromptWithUser | null>(null);
+  const [promptVersion, setPromptVersion] = useState<PromptVersionWithUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [voteCount, setVoteCount] = useState(0);
   const [isVoting, setIsVoting] = useState(false);
   const [isFavoriting, setIsFavoriting] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  const [showVersionHistory, setShowVersionHistory] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
 
   useEffect(() => {
     if (id) {
       loadPrompt();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (version && id) {
+      loadVersion();
+    }
+  }, [version, id]);
 
   useEffect(() => {
     if (prompt) {
@@ -75,6 +84,23 @@ export default function PromptDetailScreen() {
       console.error('Error loading prompt:', error);
       Alert.alert('Error', 'Failed to load prompt');
       router.back();
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadVersion = async () => {
+    if (!version) return;
+    
+    try {
+      setLoading(true);
+      const versionData = await getPromptVersion(version as string);
+      if (versionData) {
+        setPromptVersion(versionData);
+      }
+    } catch (error) {
+      console.error('Error loading version:', error);
+      Alert.alert('Error', 'Failed to load prompt version');
     } finally {
       setLoading(false);
     }
@@ -160,35 +186,70 @@ export default function PromptDetailScreen() {
     }
   };
 
-  const handleCopyToClipboard = async () => {
+  const handleEditPrompt = () => {
     if (!prompt) return;
-    
+    setShowEditor(true);
+  };
+
+  const handleViewVersionHistory = () => {
+    if (!prompt) return;
+    setShowVersionHistory(true);
+  };
+
+  const handleViewVersion = async (versionId: string) => {
     try {
-      await Clipboard.setStringAsync(prompt.content);
-      Alert.alert('Copied!', 'Prompt content has been copied to your clipboard.');
+      const version = await getPromptVersion(versionId);
+      if (version) {
+        setPromptVersion(version);
+        setShowVersionHistory(false);
+      }
     } catch (error) {
-      Alert.alert('Error', 'Failed to copy content to clipboard.');
+      console.error('Error loading version:', error);
+      Alert.alert('Error', 'Failed to load version');
     }
   };
 
-  const handleShare = async () => {
-    if (!prompt) return;
-    
-    try {
-      await Share.share({
-        message: `Check out this nursing prompt: ${prompt.title}\n\n${prompt.content}`,
-        title: prompt.title,
-      });
-    } catch (error) {
-      Alert.alert('Error', 'Failed to share prompt.');
-    }
+  const handleEditVersion = (versionId: string) => {
+    // This would be similar to handleEditPrompt but for a specific version
+    console.log('Edit version:', versionId);
   };
 
-  const handleToggleComments = () => {
-    setShowComments(!showComments);
+  const handleSaveVersion = (versionId: string) => {
+    setShowEditor(false);
+    loadPrompt(); // Refresh the prompt data
   };
 
   const renderAttribution = () => {
+    // If we're viewing a version
+    if (promptVersion) {
+      return (
+        <View style={styles.attributionSection}>
+          <View style={styles.versionBadge}>
+            <History size={16} color="#6366F1" />
+            <Text style={styles.versionBadgeText}>
+              Version {promptVersion.version_number}
+            </Text>
+          </View>
+          
+          <UserAvatar 
+            username={promptVersion.username || 'user'}
+            size={40}
+            backgroundColor="#6366F1"
+          />
+          
+          <View style={styles.userAttributionInfo}>
+            <Text style={styles.userAttributionName}>
+              @{promptVersion.username || 'anonymous'}
+            </Text>
+            <Text style={styles.userAttributionSpecialty}>
+              {promptVersion.user_specialty || 'General Practice'}
+            </Text>
+          </View>
+        </View>
+      );
+    }
+
+    // For the original prompt
     if (!prompt) return null;
 
     // Built-in prompts (created_by is null)
@@ -264,7 +325,7 @@ export default function PromptDetailScreen() {
     );
   }
 
-  if (!prompt) {
+  if (!prompt && !promptVersion) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
@@ -280,8 +341,11 @@ export default function PromptDetailScreen() {
     );
   }
 
-  const userHasVoted = hasVoted(prompt.id);
-  const userHasFavorited = isFavorited(prompt.id);
+  const displayPrompt = promptVersion || prompt;
+  if (!displayPrompt) return null;
+
+  const userHasVoted = prompt ? hasVoted(prompt.id) : false;
+  const userHasFavorited = prompt ? isFavorited(prompt.id) : false;
 
   return (
     <SafeAreaView style={styles.container}>
@@ -289,129 +353,187 @@ export default function PromptDetailScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <ArrowLeft size={24} color="#666666" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Prompt Details</Text>
+        
+        <Text style={styles.headerTitle}>
+          {promptVersion ? 'Version Details' : 'Prompt Details'}
+        </Text>
+        
+        <View style={styles.headerActions}>
+          {prompt && prompt.has_versions && (
+            <TouchableOpacity 
+              style={styles.historyButton}
+              onPress={handleViewVersionHistory}
+            >
+              <History size={20} color="#6366F1" />
+            </TouchableOpacity>
+          )}
+          
+          {user && !promptVersion && (
+            <TouchableOpacity 
+              style={styles.editButton}
+              onPress={handleEditPrompt}
+            >
+              <Edit size={20} color="#6366F1" />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
       
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>{prompt.title}</Text>
+        <Text style={styles.title}>{displayPrompt.title}</Text>
         
         {/* Author Section */}
         {renderAttribution()}
         
         <View style={styles.metaSection}>
           <View style={styles.metaBadge}>
-            <Text style={styles.metaBadgeText}>{prompt.category}</Text>
+            <Text style={styles.metaBadgeText}>{displayPrompt.category}</Text>
           </View>
-          {prompt.specialty && (
+          {displayPrompt.specialty && (
             <View style={styles.metaBadge}>
-              <Text style={styles.metaBadgeText}>{prompt.specialty}</Text>
+              <Text style={styles.metaBadgeText}>{displayPrompt.specialty}</Text>
             </View>
           )}
         </View>
 
-        <Text style={styles.promptContent}>{prompt.content}</Text>
+        <Text style={styles.promptContent}>{displayPrompt.content}</Text>
 
-        {/* Vote Section */}
-        <View style={styles.voteSection}>
-          <TouchableOpacity
-            style={[
-              styles.voteButton,
-              userHasVoted && styles.voteButtonActive,
-              isVoting && styles.voteButtonDisabled
-            ]}
-            onPress={handleVoteToggle}
-            disabled={isVoting}
-            activeOpacity={0.7}
-          >
-            <ThumbsUp 
-              size={20} 
-              color={userHasVoted ? "#FFFFFF" : "#7D3C98"}
-              fill={userHasVoted ? "#FFFFFF" : "none"}
-            />
-            <Text style={[
-              styles.voteButtonText,
-              userHasVoted && styles.voteButtonTextActive
-            ]}>
-              {isVoting ? 'Updating...' : `${voteCount} ${voteCount === 1 ? 'vote' : 'votes'}`}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {/* Tags Section */}
+        {displayPrompt.tags && displayPrompt.tags.length > 0 && (
+          <View style={styles.tagsSection}>
+            <Text style={styles.tagsSectionTitle}>Tags</Text>
+            <View style={styles.tagsContainer}>
+              {displayPrompt.tags.map((tag, index) => (
+                <View key={index} style={styles.tag}>
+                  <Text style={styles.tagText}>#{tag}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
-        {/* Action Buttons */}
-        <View style={styles.actionSection}>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={handleCopyToClipboard}
-            activeOpacity={0.7}
-          >
-            <Copy size={18} color="#666666" />
-            <Text style={styles.actionButtonText}>Copy</Text>
-          </TouchableOpacity>
+        {/* Change Summary for Versions */}
+        {promptVersion && promptVersion.change_summary && (
+          <View style={styles.changeSummarySection}>
+            <Text style={styles.changeSummaryTitle}>Changes from original:</Text>
+            <Text style={styles.changeSummaryText}>{promptVersion.change_summary}</Text>
+          </View>
+        )}
 
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={handleShare}
-            activeOpacity={0.7}
-          >
-            <Share2 size={18} color="#666666" />
-            <Text style={styles.actionButtonText}>Share</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={handleToggleComments}
-            activeOpacity={0.7}
-          >
-            <MessageSquare size={18} color="#666666" />
-            <Text style={styles.actionButtonText}>
-              Comments ({commentCount})
-            </Text>
-          </TouchableOpacity>
-        </View>
+        {/* Vote Section - only for original prompts */}
+        {prompt && !promptVersion && (
+          <View style={styles.voteSection}>
+            <TouchableOpacity
+              style={[
+                styles.voteButton,
+                userHasVoted && styles.voteButtonActive,
+                isVoting && styles.voteButtonDisabled
+              ]}
+              onPress={handleVoteToggle}
+              disabled={isVoting}
+              activeOpacity={0.7}
+            >
+              <Heart 
+                size={20} 
+                color={userHasVoted ? "#FFFFFF" : "#7D3C98"}
+                fill={userHasVoted ? "#FFFFFF" : "none"}
+              />
+              <Text style={[
+                styles.voteButtonText,
+                userHasVoted && styles.voteButtonTextActive
+              ]}>
+                {isVoting ? 'Updating...' : `${voteCount} ${voteCount === 1 ? 'vote' : 'votes'}`}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         <View style={styles.footerSection}>
           <Text style={styles.footerText}>
-            Created {new Date(prompt.created_at).toLocaleDateString()}
+            Created {new Date(displayPrompt.created_at).toLocaleDateString()}
           </Text>
         </View>
       </ScrollView>
 
-      {/* Action Bar */}
-      <View style={styles.actionBar}>
-        <TouchableOpacity 
-          style={[
-            styles.favoriteButton,
-            userHasFavorited && styles.favoriteButtonActive,
-            isFavoriting && styles.favoriteButtonDisabled
-          ]}
-          onPress={handleFavoriteToggle}
-          disabled={isFavoriting}
-          activeOpacity={0.8}
-        >
-          <Heart 
-            size={20} 
-            color={userHasFavorited ? "#FFFFFF" : "#EF4444"}
-            fill={userHasFavorited ? "#FFFFFF" : "none"}
-          />
-          <Text style={[
-            styles.favoriteButtonText,
-            userHasFavorited && styles.favoriteButtonTextActive
-          ]}>
-            {isFavoriting ? 'Updating...' : (userHasFavorited ? 'Saved' : 'Save')}
-          </Text>
-        </TouchableOpacity>
+      {/* Action Bar - only for original prompts */}
+      {prompt && !promptVersion && (
+        <View style={styles.actionBar}>
+          <TouchableOpacity 
+            style={[
+              styles.favoriteButton,
+              userHasFavorited && styles.favoriteButtonActive,
+              isFavoriting && styles.favoriteButtonDisabled
+            ]}
+            onPress={handleFavoriteToggle}
+            disabled={isFavoriting}
+            activeOpacity={0.8}
+          >
+            <Heart 
+              size={20} 
+              color={userHasFavorited ? "#FFFFFF" : "#EF4444"}
+              fill={userHasFavorited ? "#FFFFFF" : "none"}
+            />
+            <Text style={[
+              styles.favoriteButtonText,
+              userHasFavorited && styles.favoriteButtonTextActive
+            ]}>
+              {isFavoriting ? 'Updating...' : (userHasFavorited ? 'Saved' : 'Save')}
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.commentButton}
-          onPress={handleToggleComments}
-          activeOpacity={0.8}
+          <TouchableOpacity
+            style={styles.commentButton}
+            onPress={() => setShowComments(!showComments)}
+            activeOpacity={0.8}
+          >
+            <MessageSquare size={20} color="#6366F1" />
+            <Text style={styles.commentButtonText}>
+              {showComments ? 'Hide Comments' : 'View Comments'}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      
+      {/* Version History Modal */}
+      {prompt && (
+        <Modal
+          visible={showVersionHistory}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowVersionHistory(false)}
         >
-          <MessageSquare size={20} color="#6366F1" />
-          <Text style={styles.commentButtonText}>
-            {showComments ? 'Hide Comments' : 'View Comments'}
-          </Text>
-        </TouchableOpacity>
-      </View>
+          <SafeAreaView style={styles.modalContainer}>
+            <VersionHistory
+              promptId={prompt.id}
+              onViewVersion={handleViewVersion}
+              onEditVersion={handleEditVersion}
+            />
+            
+            <TouchableOpacity 
+              style={styles.closeModalButton}
+              onPress={() => setShowVersionHistory(false)}
+            >
+              <Text style={styles.closeModalButtonText}>Close</Text>
+            </TouchableOpacity>
+          </SafeAreaView>
+        </Modal>
+      )}
+      
+      {/* Prompt Editor Modal */}
+      {prompt && (
+        <Modal
+          visible={showEditor}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          onRequestClose={() => setShowEditor(false)}
+        >
+          <PromptEditor
+            originalPrompt={prompt}
+            onClose={() => setShowEditor(false)}
+            onSave={handleSaveVersion}
+          />
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -424,7 +546,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 20,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
     paddingVertical: 16,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
@@ -432,12 +555,22 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
-    marginRight: 12,
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: '#1F2937',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  historyButton: {
+    padding: 8,
+  },
+  editButton: {
+    padding: 8,
   },
   loadingContainer: {
     flex: 1,
@@ -451,33 +584,52 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    padding: 20,
+    padding: 16,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
     color: '#1F2937',
-    lineHeight: 36,
-    marginBottom: 20,
+    lineHeight: 32,
+    marginBottom: 16,
   },
   attributionSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 24,
-    paddingVertical: 16,
+    marginBottom: 16,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+      },
+      android: {
+        elevation: 2,
+      },
+      web: {
+        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
+      },
+    }),
+  },
+  versionBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F0F4FF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 12,
+    gap: 6,
+  },
+  versionBadgeText: {
+    fontSize: 14,
+    color: '#6366F1',
+    fontWeight: '600',
   },
   nurseBlockAttribution: {
     flexDirection: 'row',
@@ -506,20 +658,20 @@ const styles = StyleSheet.create({
     marginLeft: 16,
   },
   userAttributionName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '700',
     color: '#7D3C98',
     marginBottom: 4,
   },
   userAttributionSpecialty: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#666666',
     fontWeight: '500',
   },
   metaSection: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    marginBottom: 20,
+    marginBottom: 16,
     gap: 8,
   },
   metaBadge: {
@@ -539,6 +691,48 @@ const styles = StyleSheet.create({
     color: '#374151',
     lineHeight: 24,
     marginBottom: 24,
+  },
+  tagsSection: {
+    marginBottom: 24,
+  },
+  tagsSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  tag: {
+    backgroundColor: '#F0F4FF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  tagText: {
+    fontSize: 14,
+    color: '#6366F1',
+    fontWeight: '500',
+  },
+  changeSummarySection: {
+    backgroundColor: '#FEF3C7',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 24,
+  },
+  changeSummaryTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#92400E',
+    marginBottom: 8,
+  },
+  changeSummaryText: {
+    fontSize: 14,
+    color: '#92400E',
+    lineHeight: 20,
   },
   voteSection: {
     alignItems: 'center',
@@ -571,30 +765,6 @@ const styles = StyleSheet.create({
   voteButtonTextActive: {
     color: '#FFFFFF',
   },
-  actionSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    gap: 6,
-    marginHorizontal: 4,
-  },
-  actionButtonText: {
-    fontSize: 12,
-    color: '#666666',
-    fontWeight: '500',
-  },
   footerSection: {
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
@@ -607,7 +777,7 @@ const styles = StyleSheet.create({
   },
   actionBar: {
     flexDirection: 'row',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 16,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
@@ -656,6 +826,22 @@ const styles = StyleSheet.create({
   commentButtonText: {
     fontSize: 14,
     color: '#6366F1',
+    fontWeight: '600',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  closeModalButton: {
+    margin: 16,
+    backgroundColor: '#6366F1',
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  closeModalButtonText: {
+    fontSize: 16,
+    color: '#FFFFFF',
     fontWeight: '600',
   },
 });

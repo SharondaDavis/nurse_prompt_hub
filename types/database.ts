@@ -15,6 +15,8 @@ export interface Database {
           votes: number;
           is_anonymous: boolean;
           prompt_vector: any;
+          has_versions: boolean;
+          tags: string[];
         };
         Insert: {
           id?: string;
@@ -29,6 +31,8 @@ export interface Database {
           votes?: number;
           is_anonymous?: boolean;
           prompt_vector?: any;
+          has_versions?: boolean;
+          tags?: string[];
         };
         Update: {
           id?: string;
@@ -42,6 +46,55 @@ export interface Database {
           updated_at?: string;
           votes?: number;
           is_anonymous?: boolean;
+          prompt_vector?: any;
+          has_versions?: boolean;
+          tags?: string[];
+        };
+      };
+      prompt_versions: {
+        Row: {
+          id: string;
+          original_prompt_id: string;
+          title: string;
+          content: string;
+          category: string;
+          specialty: string | null;
+          tags: string[] | null;
+          created_by: string | null;
+          created_at: string;
+          is_published: boolean;
+          version_number: number;
+          change_summary: string | null;
+          prompt_vector: any;
+        };
+        Insert: {
+          id?: string;
+          original_prompt_id: string;
+          title: string;
+          content: string;
+          category: string;
+          specialty?: string | null;
+          tags?: string[] | null;
+          created_by?: string | null;
+          created_at?: string;
+          is_published?: boolean;
+          version_number: number;
+          change_summary?: string | null;
+          prompt_vector?: any;
+        };
+        Update: {
+          id?: string;
+          original_prompt_id?: string;
+          title?: string;
+          content?: string;
+          category?: string;
+          specialty?: string | null;
+          tags?: string[] | null;
+          created_by?: string | null;
+          created_at?: string;
+          is_published?: boolean;
+          version_number?: number;
+          change_summary?: string | null;
           prompt_vector?: any;
         };
       };
@@ -176,6 +229,25 @@ export interface Database {
           username: string | null;
           full_name: string | null;
           specialty: string | null;
+        };
+      };
+      prompt_versions_with_users: {
+        Row: {
+          id: string | null;
+          original_prompt_id: string | null;
+          title: string | null;
+          content: string | null;
+          category: string | null;
+          specialty: string | null;
+          tags: string[] | null;
+          created_by: string | null;
+          created_at: string | null;
+          is_published: boolean | null;
+          version_number: number | null;
+          change_summary: string | null;
+          username: string | null;
+          full_name: string | null;
+          user_specialty: string | null;
         };
       };
     };

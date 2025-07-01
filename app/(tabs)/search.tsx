@@ -1,290 +1,225 @@
 import React, { useState, useEffect } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  FlatList,
   SafeAreaView,
-  Dimensions,
-  ActivityIndicator,
+  Modal,
+  TouchableOpacity,
+  Text,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { 
-  Search, 
-  Filter, 
-  X, 
-  ChevronDown,
-  Heart,
-  Clock,
-  TrendingUp,
-  Sparkles
-} from 'lucide-react-native';
-import { fetchPrompts, PromptWithUser } from '@/lib/fetchPrompts';
-import { CATEGORIES } from '@/lib/categories';
-
-const { width: screenWidth } = Dimensions.get('window');
+import { PromptHub } from '@/components/PromptHub';
+import { PromptDetail } from '@/components/PromptDetail';
+import { fetchPromptById, PromptWithUser } from '@/lib/fetchPrompts';
+import { getPromptVersion, PromptVersionWithUser } from '@/lib/promptVersions';
+import { Edit, ArrowLeft } from 'lucide-react-native';
+import { PromptEditor } from '@/components/PromptEditor';
+import { useUser } from '@/hooks/useUser';
 
 export default function SearchScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const { user } = useUser();
   
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [showCategoryFilter, setShowCategoryFilter] = useState(false);
-  const [prompts, setPrompts] = useState<PromptWithUser[]>([]);
+  const [selectedPrompt, setSelectedPrompt] = useState<PromptWithUser | null>(null);
+  const [selectedVersion, setSelectedVersion] = useState<PromptVersionWithUser | null>(null);
+  const [showPromptDetail, setShowPromptDetail] = useState(false);
+  const [showVersionDetail, setShowVersionDetail] = useState(false);
+  const [showEditor, setShowEditor] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [hasSearched, setHasSearched] = useState(false);
 
+  // Handle category param from URL
   useEffect(() => {
-    // If category was passed as a param, update the state but don't search yet
-    if (params.category && params.category !== 'all') {
-      setSelectedCategory(params.category as string);
-      handleCategorySearch(params.category as string);
-    }
+    // If category was passed as a param, it will be handled by the PromptHub component
   }, [params.category]);
 
-  const handleSearch = async () => {
-    if (!searchTerm.trim() && selectedCategory === 'all') return;
-
-    setLoading(true);
-    setHasSearched(true);
-    
+  const handlePromptPress = async (promptId: string) => {
     try {
-      const results = await fetchPrompts({
-        search: searchTerm.trim(),
-        category: selectedCategory !== 'all' ? selectedCategory : undefined,
-        limit: 50,
-      });
-      setPrompts(results);
+      setLoading(true);
+      const prompt = await fetchPromptById(promptId);
+      
+      if (prompt) {
+        setSelectedPrompt(prompt);
+        setShowPromptDetail(true);
+      }
     } catch (error) {
-      console.error('Search error:', error);
-      setPrompts([]);
+      console.error('Error fetching prompt:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSearchSubmit = () => {
-    handleSearch();
-  };
-
-  const handleCategorySearch = (categoryId: string) => {
-    setSelectedCategory(categoryId);
-    
-    // If it's not "all", perform search with the category
-    if (categoryId !== 'all') {
+  const handleVersionPress = async (versionId: string) => {
+    try {
       setLoading(true);
-      setHasSearched(true);
+      const version = await getPromptVersion(versionId);
       
-      fetchPrompts({
-        category: categoryId,
-        limit: 50,
-      })
-        .then(results => {
-          setPrompts(results);
-        })
-        .catch(error => {
-          console.error('Category search error:', error);
-          setPrompts([]);
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    } else {
-      // Reset search if "all" is selected
-      setHasSearched(false);
-      setPrompts([]);
+      if (version) {
+        setSelectedVersion(version);
+        setShowVersionDetail(true);
+      }
+    } catch (error) {
+      console.error('Error fetching version:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handlePromptPress = (promptId: string) => {
-    router.push(`/prompt-detail/${promptId}`);
-  };
-
-  const clearSearch = () => {
-    setSearchTerm('');
-    setPrompts([]);
-    setHasSearched(false);
-    setSelectedCategory('all');
-  };
-
-  const getSelectedCategoryLabel = () => {
-    return CATEGORIES.find(cat => cat.id === selectedCategory)?.label || 'All Categories';
-  };
-
-  const handleCategorySelect = (categoryId: string) => {
-    setSelectedCategory(categoryId);
-    setShowCategoryFilter(false);
-    // If we've already searched, re-run the search with new category
-    if (hasSearched && searchTerm.trim()) {
-      setTimeout(() => {
-        handleSearch();
-      }, 100);
+  const handleEditPrompt = () => {
+    if (selectedPrompt) {
+      setShowPromptDetail(false);
+      setShowEditor(true);
     }
   };
 
-  const renderSearchHeader = () => (
-    <View style={styles.searchHeader}>
-      <View style={styles.searchContainer}>
-        <Search size={20} color="#6B7280" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search for any nursing problem, task, or keyword..."
-          value={searchTerm}
-          onChangeText={setSearchTerm}
-          placeholderTextColor="#9CA3AF"
-          returnKeyType="search"
-          onSubmitEditing={handleSearchSubmit}
-        />
-        {searchTerm.length > 0 && (
-          <TouchableOpacity onPress={clearSearch} style={styles.clearButton}>
-            <X size={18} color="#6B7280" />
-          </TouchableOpacity>
-        )}
-      </View>
-      
-      <TouchableOpacity
-        style={[
-          styles.searchButton,
-          (!searchTerm.trim() && selectedCategory === 'all') && styles.searchButtonDisabled
-        ]}
-        onPress={handleSearchSubmit}
-        disabled={!searchTerm.trim() && selectedCategory === 'all'}
+  const handleSaveVersion = (versionId: string) => {
+    setShowEditor(false);
+    // Optionally, you could fetch and show the new version here
+  };
+
+  const renderPromptDetailHeader = () => (
+    <View style={styles.modalHeader}>
+      <TouchableOpacity 
+        style={styles.backButton}
+        onPress={() => setShowPromptDetail(false)}
       >
-        <Text style={[
-          styles.searchButtonText,
-          (!searchTerm.trim() && selectedCategory === 'all') && styles.searchButtonTextDisabled
-        ]}>
-          Search
-        </Text>
+        <ArrowLeft size={24} color="#6B7280" />
       </TouchableOpacity>
+      
+      <Text style={styles.modalTitle}>Prompt Details</Text>
+      
+      {user && (
+        <TouchableOpacity 
+          style={styles.editButton}
+          onPress={handleEditPrompt}
+        >
+          <Edit size={20} color="#6366F1" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 
-  const renderPromptCard = ({ item, index }: { item: PromptWithUser; index: number }) => (
-    <TouchableOpacity
-      style={[
-        styles.promptCard,
-        index % 2 === 0 ? styles.promptCardLeft : styles.promptCardRight
-      ]}
-      onPress={() => handlePromptPress(item.id)}
-      activeOpacity={0.9}
-    >
-      <View style={styles.promptCardHeader}>
-        <View style={styles.promptBadges}>
-          {Math.random() > 0.8 && (
-            <View style={[styles.badge, styles.popularBadge]}>
-              <TrendingUp size={10} color="#FFFFFF" />
-              <Text style={styles.badgeText}>Popular</Text>
-            </View>
-          )}
-          {Math.random() > 0.9 && (
-            <View style={[styles.badge, styles.newBadge]}>
-              <Sparkles size={10} color="#FFFFFF" />
-              <Text style={styles.badgeText}>New</Text>
-            </View>
-          )}
-        </View>
-        <View style={styles.promptVotes}>
-          <Heart size={12} color="#EF4444" />
-          <Text style={styles.votesText}>{item.votes}</Text>
-        </View>
-      </View>
+  const renderVersionDetailHeader = () => (
+    <View style={styles.modalHeader}>
+      <TouchableOpacity 
+        style={styles.backButton}
+        onPress={() => setShowVersionDetail(false)}
+      >
+        <ArrowLeft size={24} color="#6B7280" />
+      </TouchableOpacity>
       
-      <Text style={styles.promptTitle} numberOfLines={2}>
-        {item.title}
-      </Text>
+      <Text style={styles.modalTitle}>Version Details</Text>
       
-      <View style={styles.promptCategory}>
-        <Text style={styles.categoryText}>{item.category}</Text>
-      </View>
-      
-      <Text style={styles.promptExcerpt} numberOfLines={3}>
-        {item.content.substring(0, 120)}...
-      </Text>
-      
-      <View style={styles.promptFooter}>
-        <View style={styles.promptMeta}>
-          <Clock size={12} color="#6B7280" />
-          <Text style={styles.metaText}>
-            {new Date(item.created_at).toLocaleDateString()}
-          </Text>
-        </View>
-      </View>
-    </TouchableOpacity>
+      <View style={styles.headerPlaceholder} />
+    </View>
   );
-
-  const renderContent = () => {
-    if (!hasSearched) {
-      return (
-        <View style={styles.placeholderContainer}>
-          <Search size={64} color="#D1D5DB" />
-          <Text style={styles.placeholderTitle}>Search Nursing Prompts</Text>
-          <Text style={styles.placeholderText}>
-            Enter keywords to find prompts that match your needs. Search by any problem, task, or keyword.
-          </Text>
-          <View style={styles.searchTips}>
-            <Text style={styles.searchTipsTitle}>Search Tips:</Text>
-            <Text style={styles.searchTip}>• Try keywords like "wound", "confused patient", or "NG tube"</Text>
-            <Text style={styles.searchTip}>• No need to pick a category - search for any problem or task</Text>
-            <Text style={styles.searchTip}>• Search for specific specialties like "ICU" or "ER"</Text>
-          </View>
-        </View>
-      );
-    }
-
-    if (loading) {
-      return (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#6366F1" />
-          <Text style={styles.loadingText}>Searching prompts...</Text>
-        </View>
-      );
-    }
-
-    if (prompts.length === 0) {
-      return (
-        <View style={styles.emptyContainer}>
-          <Search size={48} color="#D1D5DB" />
-          <Text style={styles.emptyTitle}>No prompts found</Text>
-          <Text style={styles.emptyText}>
-            Try adjusting your search terms or category filter
-          </Text>
-          <TouchableOpacity 
-            style={styles.clearSearchButton}
-            onPress={clearSearch}
-          >
-            <Text style={styles.clearSearchButtonText}>Clear Search</Text>
-          </TouchableOpacity>
-        </View>
-      );
-    }
-
-    return (
-      <View style={styles.resultsContainer}>
-        <Text style={styles.resultsCount}>
-          {prompts.length} prompt{prompts.length !== 1 ? 's' : ''} found
-          {searchTerm ? ` for "${searchTerm}"` : selectedCategory !== 'all' ? ` in ${getSelectedCategoryLabel()}` : ''}
-        </Text>
-        <FlatList
-          data={prompts}
-          renderItem={renderPromptCard}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          contentContainerStyle={styles.promptsList}
-          showsVerticalScrollIndicator={false}
-        />
-      </View>
-    );
-  };
 
   return (
     <SafeAreaView style={styles.container}>
-      {renderSearchHeader()}
+      <PromptHub
+        onPromptPress={handlePromptPress}
+        onVersionPress={handleVersionPress}
+      />
       
-      {renderContent()}
+      {/* Prompt Detail Modal */}
+      {selectedPrompt && (
+        <Modal
+          visible={showPromptDetail}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowPromptDetail(false)}
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            {renderPromptDetailHeader()}
+            <PromptDetail
+              prompt={selectedPrompt}
+              onClose={() => setShowPromptDetail(false)}
+            />
+          </SafeAreaView>
+        </Modal>
+      )}
+      
+      {/* Version Detail Modal */}
+      {selectedVersion && (
+        <Modal
+          visible={showVersionDetail}
+          animationType="slide"
+          presentationStyle="pageSheet"
+          onRequestClose={() => setShowVersionDetail(false)}
+        >
+          <SafeAreaView style={styles.modalContainer}>
+            {renderVersionDetailHeader()}
+            <View style={styles.versionDetailContainer}>
+              <View style={styles.versionBadge}>
+                <Text style={styles.versionBadgeText}>
+                  Version {selectedVersion.version_number}
+                </Text>
+              </View>
+              
+              <Text style={styles.versionTitle}>{selectedVersion.title}</Text>
+              
+              <View style={styles.versionMeta}>
+                <View style={styles.versionCategory}>
+                  <Text style={styles.versionCategoryText}>{selectedVersion.category}</Text>
+                </View>
+                {selectedVersion.specialty && (
+                  <View style={styles.versionSpecialty}>
+                    <Text style={styles.versionSpecialtyText}>{selectedVersion.specialty}</Text>
+                  </View>
+                )}
+              </View>
+              
+              <Text style={styles.versionContent}>{selectedVersion.content}</Text>
+              
+              {selectedVersion.tags && selectedVersion.tags.length > 0 && (
+                <View style={styles.versionTags}>
+                  <Text style={styles.versionTagsTitle}>Tags:</Text>
+                  <View style={styles.versionTagsContainer}>
+                    {selectedVersion.tags.map((tag, index) => (
+                      <View key={index} style={styles.versionTag}>
+                        <Text style={styles.versionTagText}>#{tag}</Text>
+                      </View>
+                    ))}
+                  </View>
+                </View>
+              )}
+              
+              {selectedVersion.change_summary && (
+                <View style={styles.changeSummary}>
+                  <Text style={styles.changeSummaryTitle}>Changes from original:</Text>
+                  <Text style={styles.changeSummaryText}>{selectedVersion.change_summary}</Text>
+                </View>
+              )}
+              
+              <View style={styles.versionAuthor}>
+                <Text style={styles.versionAuthorTitle}>Created by:</Text>
+                <Text style={styles.versionAuthorName}>
+                  {selectedVersion.username || 'Anonymous'}
+                </Text>
+                <Text style={styles.versionDate}>
+                  {new Date(selectedVersion.created_at).toLocaleDateString()}
+                </Text>
+              </View>
+            </View>
+          </SafeAreaView>
+        </Modal>
+      )}
+      
+      {/* Prompt Editor Modal */}
+      {selectedPrompt && (
+        <Modal
+          visible={showEditor}
+          animationType="slide"
+          presentationStyle="fullScreen"
+          onRequestClose={() => setShowEditor(false)}
+        >
+          <PromptEditor
+            originalPrompt={selectedPrompt}
+            onClose={() => setShowEditor(false)}
+            onSave={handleSaveVersion}
+          />
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -294,324 +229,153 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  searchHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    gap: 12,
-  },
-  searchContainer: {
+  modalContainer: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    backgroundColor: '#F8FAFC',
   },
-  searchIcon: {
-    marginRight: 8,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 16,
-    color: '#1F2937',
-    paddingVertical: 12,
-  },
-  clearButton: {
-    padding: 4,
-    marginLeft: 8,
-  },
-  searchButton: {
-    backgroundColor: '#6366F1',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  searchButtonDisabled: {
-    backgroundColor: '#D1D5DB',
-  },
-  searchButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  searchButtonTextDisabled: {
-    color: '#9CA3AF',
-  },
-  filterSection: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  filterHint: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginBottom: 4,
-    fontStyle: 'italic',
-  },
-  categoryFilterContainer: {
-    position: 'relative',
-  },
-  filterButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F0F4FF',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    maxWidth: 200,
-  },
-  filterIcon: {
-    marginRight: 6,
-    opacity: 0.7,
-  },
-  filterButtonText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#6366F1',
-    fontWeight: '500',
-  },
-  chevron: {
-    transform: [{ rotate: '0deg' }],
-  },
-  chevronRotated: {
-    transform: [{ rotate: '180deg' }],
-  },
-  categoryDropdown: {
-    position: 'absolute',
-    top: 40,
-    left: 0,
-    right: 0,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    zIndex: 10,
-  },
-  categoryOption: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  selectedCategoryOption: {
-    backgroundColor: '#F0F4FF',
-  },
-  categoryOptionText: {
-    fontSize: 14,
-    color: '#374151',
-    fontWeight: '500',
-  },
-  selectedCategoryOptionText: {
-    color: '#6366F1',
-    fontWeight: '600',
-  },
-  placeholderContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 40,
-  },
-  placeholderTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#374151',
-    marginTop: 16,
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  placeholderText: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 24,
-  },
-  searchTips: {
-    backgroundColor: '#F9FAFB',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    alignSelf: 'stretch',
-  },
-  searchTipsTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
-  },
-  searchTip: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 4,
-    lineHeight: 20,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 16,
-    color: '#6B7280',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#374151',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#6B7280',
-    textAlign: 'center',
-    lineHeight: 24,
-    marginBottom: 24,
-  },
-  clearSearchButton: {
-    backgroundColor: '#6366F1',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  clearSearchButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  resultsContainer: {
-    flex: 1,
-  },
-  resultsCount: {
-    fontSize: 14,
-    color: '#6B7280',
-    fontWeight: '500',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-  },
-  promptsList: {
-    padding: 16,
-    gap: 16,
-  },
-  promptCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-    marginBottom: 16,
-    width: (screenWidth - 48) / 2,
-  },
-  promptCardLeft: {
-    marginRight: 8,
-  },
-  promptCardRight: {
-    marginLeft: 8,
-  },
-  promptCardHeader: {
+  modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
-  },
-  promptBadges: {
-    flexDirection: 'column',
-    gap: 4,
-  },
-  badge: {
-    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    gap: 2,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
-  popularBadge: {
-    backgroundColor: '#EF4444',
+  backButton: {
+    padding: 8,
   },
-  newBadge: {
-    backgroundColor: '#10B981',
-  },
-  badgeText: {
-    color: '#FFFFFF',
-    fontSize: 8,
-    fontWeight: '600',
-  },
-  promptVotes: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  votesText: {
-    color: '#6B7280',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  promptTitle: {
-    fontSize: 16,
+  modalTitle: {
+    fontSize: 18,
     fontWeight: '700',
     color: '#1F2937',
-    marginBottom: 6,
-    lineHeight: 20,
   },
-  promptCategory: {
+  editButton: {
+    padding: 8,
+  },
+  headerPlaceholder: {
+    width: 36,
+    height: 36,
+  },
+  versionDetailContainer: {
+    flex: 1,
+    padding: 16,
+  },
+  versionBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#F0F4FF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginBottom: 16,
+  },
+  versionBadgeText: {
+    fontSize: 14,
+    color: '#6366F1',
+    fontWeight: '600',
+  },
+  versionTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 16,
+    lineHeight: 32,
+  },
+  versionMeta: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 20,
+    gap: 8,
+  },
+  versionCategory: {
+    backgroundColor: '#F0F4FF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  versionCategoryText: {
+    fontSize: 14,
+    color: '#6366F1',
+    fontWeight: '600',
+  },
+  versionSpecialty: {
+    backgroundColor: '#F0FDFA',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  versionSpecialtyText: {
+    fontSize: 14,
+    color: '#14B8A6',
+    fontWeight: '600',
+  },
+  versionContent: {
+    fontSize: 16,
+    color: '#374151',
+    lineHeight: 24,
+    marginBottom: 20,
+  },
+  versionTags: {
+    marginBottom: 20,
+  },
+  versionTagsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
     marginBottom: 8,
   },
-  categoryText: {
+  versionTagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  versionTag: {
+    backgroundColor: '#F0F4FF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  versionTagText: {
+    fontSize: 14,
     color: '#6366F1',
-    fontSize: 10,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  promptExcerpt: {
-    color: '#6B7280',
-    fontSize: 12,
-    lineHeight: 16,
-    marginBottom: 12,
-  },
-  promptFooter: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-  },
-  promptMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  metaText: {
-    fontSize: 10,
-    color: '#6B7280',
     fontWeight: '500',
+  },
+  changeSummary: {
+    backgroundColor: '#FEF3C7',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 20,
+  },
+  changeSummaryTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#92400E',
+    marginBottom: 8,
+  },
+  changeSummaryText: {
+    fontSize: 14,
+    color: '#92400E',
+    lineHeight: 20,
+  },
+  versionAuthor: {
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    paddingTop: 16,
+  },
+  versionAuthorTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  versionAuthorName: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  versionDate: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 4,
   },
 });
