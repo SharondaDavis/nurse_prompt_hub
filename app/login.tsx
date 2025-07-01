@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabaseClient";
-import HCaptcha from "../components/HCaptcha";
 import {
   SafeAreaView,
   ScrollView,
@@ -13,15 +12,17 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
+import HCaptcha from "../components/HCaptcha";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   const handleAuth = async () => {
-    if (!email || !password) {
-      Alert.alert("Missing Info", "Please enter both email and password.");
+    if (!email || !password || !captchaToken) {
+      Alert.alert("Missing Info", "Please complete all fields and CAPTCHA.");
       return;
     }
 
@@ -30,47 +31,27 @@ export default function LoginScreen() {
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
+          options: {
+            captchaToken,
+          },
         });
 
         if (signUpError) throw signUpError;
-
-        if (signUpData?.user?.id) {
-          const { error: insertError } = await supabase.from("users").insert([
-            {
-              id: signUpData.user.id,
-              email: email,
-              created_at: new Date(),
-            },
-          ]);
-
-          if (insertError) {
-            console.warn(
-              "User saved to auth but not inserted into users table:",
-              insertError.message
-            );
-          }
-        }
-
         Alert.alert("Success", "Check your email to confirm your account.");
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
+          options: {
+            captchaToken,
+          },
         });
 
         if (error) throw error;
-
         Alert.alert("Success", "You're signed in!");
       }
     } catch (error: any) {
-      if (error.message?.includes("captcha")) {
-        Alert.alert(
-          "CAPTCHA Error",
-          "Disable CAPTCHA in Supabase Auth settings or complete configuration."
-        );
-      } else {
-        Alert.alert("Auth Error", error.message || "Something went wrong.");
-      }
+      Alert.alert("Auth Error", error.message || "Something went wrong.");
     }
   };
 
@@ -103,6 +84,8 @@ export default function LoginScreen() {
             secureTextEntry
           />
 
+          <HCaptcha onVerify={(token) => setCaptchaToken(token)} />
+
           <TouchableOpacity style={styles.button} onPress={handleAuth}>
             <Text style={styles.buttonText}>{isSignUp ? "Sign Up" : "Sign In"}</Text>
           </TouchableOpacity>
@@ -110,8 +93,8 @@ export default function LoginScreen() {
           <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)}>
             <Text style={styles.toggleText}>
               {isSignUp
-                ? "Already have an account? Sign in"
-                : "Don't have an account? Sign up"}
+                ? "Already have an account? Sign in here"
+                : "Don't have an account? Sign up now"}
             </Text>
           </TouchableOpacity>
         </KeyboardAvoidingView>
