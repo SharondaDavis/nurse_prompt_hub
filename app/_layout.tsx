@@ -1,3 +1,4 @@
+import 'react-native-web';
 import { Platform } from 'react-native';
 import { useEffect } from 'react';
 import { Stack } from 'expo-router';
