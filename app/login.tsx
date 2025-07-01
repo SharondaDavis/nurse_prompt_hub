@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabaseClient";
+import HCaptcha from "../components/HCaptcha";
 import {
   SafeAreaView,
   ScrollView,
