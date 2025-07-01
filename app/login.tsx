@@ -10,36 +10,39 @@ import {
   StyleSheet,
   Alert,
   KeyboardAvoidingView,
-  Platform
+  Platform,
 } from "react-native";
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isSignUp, setIsSignUp] = useState(false); // toggle between sign in / sign up
 
-  const handleSupabaseError = (error: any) => {
-    if (error.message?.includes('captcha verification process failed')) {
-      Alert.alert(
-        'Authentication Configuration Issue',
-        'Your Supabase project has reCAPTCHA enabled. To fix this:\n\n1. Go to your Supabase Dashboard\n2. Navigate to Authentication → Settings\n3. Disable reCAPTCHA protection'
-      );
-    } else {
-      Alert.alert("Login failed", error.message || 'An unexpected error occurred. Please try again.');
-    }
-  };
-
-  const handleLogin = async () => {
+  const handleAuth = async () => {
     if (!email || !password) {
-      Alert.alert("Missing Info", "Please fill in both email and password.");
+      Alert.alert("Missing Info", "Please enter both email and password.");
       return;
     }
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) handleSupabaseError(error);
-      else Alert.alert("Success", "You're logged in!");
-    } catch (err: any) {
-      handleSupabaseError(err);
+      if (isSignUp) {
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        Alert.alert("Success", "Check your email to confirm your account.");
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        Alert.alert("Success", "You're signed in!");
+      }
+    } catch (error: any) {
+      if (error.message?.includes("captcha")) {
+        Alert.alert(
+          "CAPTCHA Error",
+          "Disable reCAPTCHA in Supabase Auth Settings if not configured."
+        );
+      } else {
+        Alert.alert("Auth Error", error.message || "Something went wrong.");
+      }
     }
   };
 
@@ -47,11 +50,13 @@ export default function LoginScreen() {
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.inner}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
           style={styles.keyboard}
         >
           <Text style={styles.title}>Nurse Prompt Hub</Text>
-          <Text style={styles.subtitle}>Sign in to continue</Text>
+          <Text style={styles.subtitle}>
+            {isSignUp ? "Create a new account" : "Sign in to continue"}
+          </Text>
 
           <TextInput
             style={styles.input}
@@ -70,8 +75,16 @@ export default function LoginScreen() {
             secureTextEntry
           />
 
-          <TouchableOpacity style={styles.button} onPress={handleLogin}>
-            <Text style={styles.buttonText}>Login</Text>
+          <TouchableOpacity style={styles.button} onPress={handleAuth}>
+            <Text style={styles.buttonText}>{isSignUp ? "Sign Up" : "Sign In"}</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={() => setIsSignUp(!isSignUp)}>
+            <Text style={styles.toggleText}>
+              {isSignUp
+                ? "Already have an account? Sign in here"
+                : "Don't have an account? Sign up now"}
+            </Text>
           </TouchableOpacity>
         </KeyboardAvoidingView>
       </ScrollView>
@@ -128,5 +141,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
+  toggleText: {
+    color: "#4B5563",
+    fontSize: 14,
+    textAlign: "center",
+    marginTop: 16,
+    textDecorationLine: "underline",
+  },
 });
-
