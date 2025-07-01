@@ -94,6 +94,8 @@ export function useUser() {
 
   const fetchProfile = async (userId: string) => {
     try {
+      if (!mountedRef.current) return;
+      
       const { data, error } = await supabase
         .from('user_profiles')
         .select('*')
