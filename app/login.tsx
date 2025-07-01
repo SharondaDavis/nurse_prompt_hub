@@ -3,7 +3,6 @@ import { supabase } from "../lib/supabaseClient";
 import {
   SafeAreaView,
   ScrollView,
-  View,
   Text,
   TextInput,
   TouchableOpacity,
@@ -26,22 +25,22 @@ export default function LoginScreen() {
 
     try {
       if (isSignUp) {
-        const { data, error } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo: "https://nurse-prompt-hub.vercel.app/welcome", // update as needed
+            emailRedirectTo: "https://nurse-prompt-hub.vercel.app/welcome", // Change to your URL
           },
         });
 
         if (error) throw error;
 
         Alert.alert(
-          "Sign Up Successful",
-          "Please check your email to confirm your account."
+          "Account Created",
+          "Check your email to verify your account."
         );
       } else {
-        const { data, error } = await supabase.auth.signInWithPassword({
+        const { error } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
@@ -64,7 +63,7 @@ export default function LoginScreen() {
         >
           <Text style={styles.title}>Nurse Prompt Hub</Text>
           <Text style={styles.subtitle}>
-            {isSignUp ? "Create an account" : "Sign in to your account"}
+            {isSignUp ? "Sign up for a new account" : "Sign in to continue"}
           </Text>
 
           <TextInput
@@ -94,7 +93,7 @@ export default function LoginScreen() {
             <Text style={styles.toggleText}>
               {isSignUp
                 ? "Already have an account? Sign in"
-                : "Don't have an account? Sign up"}
+                : "New here? Sign up instead"}
             </Text>
           </TouchableOpacity>
         </KeyboardAvoidingView>
@@ -121,7 +120,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   input: {
-    backgroundColor: "#fff",
+    backgroundColor: "#ffffff",
     borderWidth: 1,
     borderColor: "#E5E7EB",
     borderRadius: 8,
@@ -137,7 +136,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 8,
   },
-  buttonText: { color: "#FFF", fontSize: 16, fontWeight: "600" },
+  buttonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
   toggleText: {
     color: "#4B5563",
     fontSize: 14,
