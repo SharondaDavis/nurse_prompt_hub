@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { supabase } from '@/lib/supabaseClient';
 import { Stethoscope, X, Mail, CircleCheck as CheckCircle, Eye, EyeOff } from 'lucide-react-native';
+import { ReCaptchaV3 } from 'expo-recaptcha-v3';
 
 interface AuthProps {
   onAuthSuccess?: () => void;
@@ -30,6 +31,7 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
   const [showEmailSent, setShowEmailSent] = useState(false);
   const [pendingEmail, setPendingEmail] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [recaptchaToken, setRecaptchaToken] = useState<string | null>(null);
 
   // Check if Supabase is properly configured
   const isSupabaseConfigured = 
@@ -37,6 +39,13 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY &&
     process.env.EXPO_PUBLIC_SUPABASE_URL !== 'https://your-project-id.supabase.co' &&
     process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY !== 'your-anon-key-here';
+
+  // reCAPTCHA site key - you'll need to get this from Google reCAPTCHA console
+  const recaptchaSiteKey = process.env.EXPO_PUBLIC_RECAPTCHA_SITE_KEY || '6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI'; // Test key
+
+  const handleRecaptchaVerify = (token: string) => {
+    setRecaptchaToken(token);
+  };
 
   const handleSignIn = async () => {
     if (!isSupabaseConfigured) {
@@ -55,39 +64,56 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
     }
 
     setIsLoading(true);
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
 
-    if (error) {
-      if (error.message.includes('Email not confirmed')) {
-        Alert.alert(
-          'Email Not Verified', 
-          'Please check your email and click the verification link before signing in.',
-          [
-            { text: 'Resend Email', onPress: () => resendConfirmation(email) },
-            { text: 'OK', style: 'default' }
-          ]
-        );
-      } else {
-        Alert.alert('Sign In Failed', error.message);
+    try {
+      const authOptions: any = {
+        email,
+        password,
+      };
+
+      // Add reCAPTCHA token if available and on web platform
+      if (Platform.OS === 'web' && recaptchaToken) {
+        authOptions.options = {
+          captchaToken: recaptchaToken,
+        };
       }
-    } else if (data.user) {
-      // Check if email is confirmed
-      if (!data.user.email_confirmed_at) {
-        Alert.alert(
-          'Email Not Verified', 
-          'Please check your email and click the verification link to complete your account setup.',
-          [
-            { text: 'Resend Email', onPress: () => resendConfirmation(email) },
-            { text: 'OK', style: 'default' }
-          ]
-        );
-      } else {
-        onAuthSuccess?.();
+
+      const { data, error } = await supabase.auth.signInWithPassword(authOptions);
+
+      if (error) {
+        if (error.message.includes('Email not confirmed')) {
+          Alert.alert(
+            'Email Not Verified', 
+            'Please check your email and click the verification link before signing in.',
+            [
+              { text: 'Resend Email', onPress: () => resendConfirmation(email) },
+              { text: 'OK', style: 'default' }
+            ]
+          );
+        } else if (error.message.includes('captcha')) {
+          Alert.alert('Verification Required', 'Please complete the reCAPTCHA verification and try again.');
+        } else {
+          Alert.alert('Sign In Failed', error.message);
+        }
+      } else if (data.user) {
+        // Check if email is confirmed
+        if (!data.user.email_confirmed_at) {
+          Alert.alert(
+            'Email Not Verified', 
+            'Please check your email and click the verification link to complete your account setup.',
+            [
+              { text: 'Resend Email', onPress: () => resendConfirmation(email) },
+              { text: 'OK', style: 'default' }
+            ]
+          );
+        } else {
+          onAuthSuccess?.();
+        }
       }
+    } catch (err) {
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
     }
+    
     setIsLoading(false);
   };
 
@@ -118,34 +144,51 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
 
     setIsLoading(true);
     
-    // Get the current URL for redirect
-    const currentUrl = typeof window !== 'undefined' ? window.location.origin : '';
-    
-    // Sign up with email confirmation required
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${currentUrl}/auth/callback`,
-        data: {
-          username,
-          full_name: fullName,
-          specialty,
-          years_experience: parseInt(yearsExperience),
+    try {
+      // Get the current URL for redirect
+      const currentUrl = typeof window !== 'undefined' ? window.location.origin : '';
+      
+      const signUpOptions: any = {
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${currentUrl}/auth/callback`,
+          data: {
+            username,
+            full_name: fullName,
+            specialty,
+            years_experience: parseInt(yearsExperience),
+          }
         }
-      }
-    });
+      };
 
-    if (error) {
-      Alert.alert('Sign Up Failed', error.message);
+      // Add reCAPTCHA token if available and on web platform
+      if (Platform.OS === 'web' && recaptchaToken) {
+        signUpOptions.options.captchaToken = recaptchaToken;
+      }
+
+      // Sign up with email confirmation required
+      const { data, error } = await supabase.auth.signUp(signUpOptions);
+
+      if (error) {
+        if (error.message.includes('captcha')) {
+          Alert.alert('Verification Required', 'Please complete the reCAPTCHA verification and try again.');
+        } else {
+          Alert.alert('Sign Up Failed', error.message);
+        }
+        setIsLoading(false);
+        return;
+      }
+
+      if (data.user) {
+        // Show email confirmation message
+        setPendingEmail(email);
+        setShowEmailSent(true);
+      }
+    } catch (err) {
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
       setIsLoading(false);
       return;
-    }
-
-    if (data.user) {
-      // Show email confirmation message
-      setPendingEmail(email);
-      setShowEmailSent(true);
     }
     
     setIsLoading(false);
@@ -318,6 +361,17 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
           </View>
         ) : (
           <View style={styles.form}>
+            {/* reCAPTCHA component for web platform */}
+            {Platform.OS === 'web' && isSupabaseConfigured && (
+              <View style={styles.recaptchaContainer}>
+                <ReCaptchaV3
+                  siteKey={recaptchaSiteKey}
+                  onVerify={handleRecaptchaVerify}
+                  size="invisible"
+                />
+              </View>
+            )}
+
             <TextInput
               style={styles.input}
               placeholder="Email Address"
@@ -422,6 +476,14 @@ export function Auth({ onAuthSuccess, onCancel }: AuthProps) {
                 </Text>
               </View>
             )}
+
+            {Platform.OS === 'web' && isSupabaseConfigured && (
+              <View style={styles.recaptchaNote}>
+                <Text style={styles.recaptchaText}>
+                  Protected by reCAPTCHA
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -513,6 +575,9 @@ const styles = StyleSheet.create({
   form: {
     marginBottom: 32,
   },
+  recaptchaContainer: {
+    marginBottom: 16,
+  },
   input: {
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
@@ -558,6 +623,15 @@ const styles = StyleSheet.create({
   verificationText: {
     fontSize: 14,
     color: '#1E40AF',
+    textAlign: 'center',
+  },
+  recaptchaNote: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  recaptchaText: {
+    fontSize: 12,
+    color: '#6B7280',
     textAlign: 'center',
   },
   button: {
