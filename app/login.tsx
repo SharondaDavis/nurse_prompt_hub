@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "../lib/supabase"; // or wherever your client is
+import { supabase } from "../lib/supabaseClient";
 import { View, TextInput, Button, Text, Alert } from "react-native";
 
 export default function LoginScreen() {
@@ -25,3 +25,4 @@ export default function LoginScreen() {
     </View>
   );
 }
+
