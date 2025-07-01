@@ -21,7 +21,7 @@ export default function LoginScreen() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
 
   const handleAuth = async () => {
-    if (!email || !password || !captchaToken) {
+    if (!email || !password || (Platform.OS !== "web" && !captchaToken)) {
       Alert.alert("Missing Info", "Please complete all fields and CAPTCHA.");
       return;
     }
@@ -31,9 +31,7 @@ export default function LoginScreen() {
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
-          options: {
-            captchaToken,
-          },
+          options: Platform.OS !== "web" ? { captchaToken } : {},
         });
 
         if (signUpError) throw signUpError;
@@ -42,9 +40,7 @@ export default function LoginScreen() {
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
-          options: {
-            captchaToken,
-          },
+          options: Platform.OS !== "web" ? { captchaToken } : {},
         });
 
         if (error) throw error;
@@ -84,7 +80,9 @@ export default function LoginScreen() {
             secureTextEntry
           />
 
-          <HCaptcha onVerify={(token) => setCaptchaToken(token)} />
+          {Platform.OS !== "web" && (
+            <HCaptcha onVerify={(token) => setCaptchaToken(token)} />
+          )}
 
           <TouchableOpacity style={styles.button} onPress={handleAuth}>
             <Text style={styles.buttonText}>{isSignUp ? "Sign Up" : "Sign In"}</Text>
