@@ -62,7 +62,7 @@ export default function ProfileScreen() {
   };
 
   const handleSignIn = () => {
-    setShowAuth(true);
+    router.push('/login');
   };
 
   const handleAuthSuccess = () => {
@@ -71,7 +71,7 @@ export default function ProfileScreen() {
 
   const handlePromptPress = (promptId: string) => {
     router.push({
-      pathname: '/prompt-detail',
+      pathname: '/prompt-detail/[id]',
       params: { id: promptId }
     });
   };
@@ -373,20 +373,20 @@ export default function ProfileScreen() {
             >
               <View style={styles.promptCardHeader}>
                 <View style={styles.promptCategory}>
-                  <Text style={styles.promptCategoryText}>{favorite.prompts.category}</Text>
+                  <Text style={styles.promptCategoryText}>{favorite.prompts?.category || 'General'}</Text>
                 </View>
                 <View style={styles.promptVotes}>
                   <TrendingUp size={14} color="#EF4444" />
-                  <Text style={styles.votesText}>{favorite.prompts.votes}</Text>
+                  <Text style={styles.votesText}>{favorite.prompts?.votes || 0}</Text>
                 </View>
               </View>
               
               <Text style={styles.promptTitle} numberOfLines={2}>
-                {favorite.prompts.title}
+                {favorite.prompts?.title || 'Untitled Prompt'}
               </Text>
               
               <Text style={styles.promptExcerpt} numberOfLines={2}>
-                {favorite.prompts.content.substring(0, 150)}...
+                {favorite.prompts?.content?.substring(0, 150) || 'No content available'}...
               </Text>
               
               <View style={styles.promptFooter}>
