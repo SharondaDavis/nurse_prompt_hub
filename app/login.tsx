@@ -13,38 +13,64 @@ import {
   Platform,
 } from "react-native";
 
+import { useRouter } from "expo-router";
+
+
 export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false); // toggle between sign in / sign up
+  const router = useRouter();
 
-  const handleAuth = async () => {
-    if (!email || !password) {
-      Alert.alert("Missing Info", "Please enter both email and password.");
-      return;
-    }
+const handleAuth = async () => {
+  if (!email || !password) {
+    Alert.alert("Missing Info", "Please enter both email and password.");
+    return;
+  }
 
-    try {
-      if (isSignUp) {
-        const { error } = await supabase.auth.signUp({ email, password });
-        if (error) throw error;
-        Alert.alert("Success", "Check your email to confirm your account.");
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-        Alert.alert("Success", "You're signed in!");
+  try {
+    if (isSignUp) {
+      const { error } = await supabase.auth.signUp({ email, password });
+      if (error) throw error;
+      Alert.alert("Success", "Check your email to confirm your account.");
+    } else {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+
+      const user = data.user;
+
+      if (!user?.email_confirmed_at) {
+        Alert.alert("Email not verified", "Please confirm your email to continue.");
+        return;
       }
-    } catch (error: any) {
-      if (error.message?.includes("captcha")) {
-        Alert.alert(
-          "CAPTCHA Error",
-          "Disable reCAPTCHA in Supabase Auth Settings if not configured."
-        );
-      } else {
-        Alert.alert("Auth Error", error.message || "Something went wrong.");
+
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("username")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile || !profile.username) {
+        Alert.alert("Setup Required", "Finish creating your profile.");
+        router.push("/profile-setup");
+        return;
       }
+
+      // All good: go to homepage or wherever
+      Alert.alert("Welcome", "You're signed in!");
+      router.push("/");
     }
-  };
+  } catch (error: any) {
+    if (error.message?.includes("captcha")) {
+      Alert.alert(
+        "CAPTCHA Error",
+        "Disable reCAPTCHA in Supabase Auth Settings if not configured."
+      );
+    } else {
+      Alert.alert("Auth Error", error.message || "Something went wrong.");
+    }
+  }
+};
 
   return (
     <SafeAreaView style={styles.container}>
